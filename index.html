@@ -12,104 +12,165 @@
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="onboarding">
 <div id="app">
   <header>
     <h1 class="logo">void</h1>
     <div id="level" class="pill"></div>
   </header>
 
-  <!-- HOME -->
-  <section id="home" class="screen active">
+  <!-- ===== SETUP ===== -->
+  <section id="intro" class="screen">
+    <div class="intro">
+      <h1 class="hero-title">void</h1>
+      <p class="lead">Most people never find out what they're meant to do. Not because they can't, but because they never test it.</p>
+      <p class="lead soft">Void gives you real quests. You do them, log how each one made you feel, and the pattern shows you what's pulling you.</p>
+      <label class="check"><input type="checkbox" id="adult"><span>I'm 18 or older</span></label>
+      <button class="btn primary" id="begin" disabled>Begin</button>
+    </div>
+  </section>
+
+  <section id="choose" class="screen">
+    <h2 class="title">Choose your Void</h2>
+    <p class="sub">Your companion. It changes as you do.</p>
+    <div class="pick">
+      <button class="arrow" id="pick-prev" aria-label="Previous design">‹</button>
+      <div id="pick-stage"><div id="pick-void"></div></div>
+      <button class="arrow" id="pick-next" aria-label="Next design">›</button>
+    </div>
+    <div class="pick-name" id="pick-name"></div>
+    <p class="pick-line" id="pick-line"></p>
+    <div class="pdots" id="pick-dots"></div>
+    <div class="q-label">Colour</div>
+    <div class="swatches" id="swatches"></div>
+    <button class="btn primary" id="pick-go">Choose this Void</button>
+  </section>
+
+  <section id="namer" class="screen">
+    <h2 class="title">Name your Void</h2>
+    <p class="sub">You'll be doing this together for a while.</p>
+    <div class="namer-prev" id="namer-void"></div>
+    <input type="text" id="name-in" maxlength="14" placeholder="Name" autocomplete="off">
+    <div class="sugs" id="sugs"></div>
+    <button class="btn primary" id="start" disabled>Start</button>
+    <button class="link" id="namer-back">Back</button>
+  </section>
+
+  <!-- ===== HOME ===== -->
+  <section id="home" class="screen">
     <div class="stage">
       <div class="bubble" id="bubble"><span id="bubble-text"></span></div>
-      <svg id="void-svg" viewBox="0 0 240 240" role="img" aria-label="Void, a blob character who fills with colour">
+      <svg id="void-svg" viewBox="0 0 240 240" role="img" aria-label="Your Void">
         <defs>
-          <clipPath id="clip"><path d="M120 30C170 30 205 70 203 125C201 175 175 210 120 210C65 210 38 176 38 125C38 70 70 30 120 30Z"/></clipPath>
+          <clipPath id="clip"><path d=""/></clipPath>
           <radialGradient id="glass" cx=".38" cy=".28" r=".85">
-            <stop offset="0" stop-color="#40355e"/><stop offset="1" stop-color="#1a1528"/>
+            <stop id="glassA" offset="0" stop-color="#40355e"/><stop id="glassB" offset="1" stop-color="#1a1528"/>
           </radialGradient>
           <linearGradient id="liqgrad" x1="0" y1="0" x2="0" y2="1"></linearGradient>
         </defs>
         <ellipse class="ground" cx="120" cy="226" rx="72" ry="8"/>
         <g id="idle"><g id="squish">
-          <path class="hollow" d="M120 30C170 30 205 70 203 125C201 175 175 210 120 210C65 210 38 176 38 125C38 70 70 30 120 30Z"/>
+          <path class="hollow" d=""/>
           <g clip-path="url(#clip)">
-            <text id="hollow-q" class="q" x="120" y="192" text-anchor="middle">?</text>
             <g id="liquid">
               <g id="layers"></g>
               <path id="wave" d="M-240 0 q30 -9 60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 V8 H-240 Z"/>
               <g id="bubbles"></g>
             </g>
-            <path class="shine" d="M68 78 Q74 52 100 42"/>
+            <path id="detail" d="" fill="none" stroke-opacity=".25" stroke-width="2"/>
+            <path class="shine" d=""/>
           </g>
-          <path class="outline" d="M120 30C170 30 205 70 203 125C201 175 175 210 120 210C65 210 38 176 38 125C38 70 70 30 120 30Z"/>
+          <path class="outline" d=""/>
           <g id="face">
-            <g class="eye"><ellipse class="sclera" cx="99" cy="108" rx="11" ry="14"/><g id="pupL"><circle class="pupil" cx="99" cy="110" r="5.2"/><circle class="glint" cx="101" cy="107.5" r="1.7"/></g></g>
-            <g class="eye"><ellipse class="sclera" cx="141" cy="108" rx="11" ry="14"/><g id="pupR"><circle class="pupil" cx="141" cy="110" r="5.2"/><circle class="glint" cx="143" cy="107.5" r="1.7"/></g></g>
-            <path id="mouth" d=""/>
-            <ellipse id="tongue" cx="120" cy="162" rx="9" ry="5" fill="none" opacity="0"/>
+            <g class="eye"><ellipse id="sclL" class="sclera"/><g id="pupL"><circle id="pL" class="pupil"/><circle id="gL" class="glint"/></g></g>
+            <g class="eye"><ellipse id="sclR" class="sclera"/><g id="pupR"><circle id="pR" class="pupil"/><circle id="gR" class="glint"/></g></g>
           </g>
+          <g id="gear"></g>
         </g></g>
-        <g id="stickers"></g>
       </svg>
     </div>
+
+    <div class="plate">
+      <div class="vname" id="vname"></div>
+      <div class="plate-rank" id="plate-rank"></div>
+      <div class="xp"><div id="xp-fill"></div></div>
+      <div class="xp-meta"><span id="xp-left"></span><span id="xp-right"></span></div>
+    </div>
+
     <div id="home-actions"></div>
   </section>
 
-  <!-- EXPERIMENT CARD -->
+  <!-- ===== QUEST CARD ===== -->
   <section id="exp" class="screen stack">
     <div class="card" id="card"></div>
     <button class="btn primary" id="accept">Accept quest</button>
-    <button class="btn" id="reroll">🔀 Give me a different one</button>
+    <button class="btn" id="reroll">Give me a different one</button>
     <button class="link" id="back1">Not now</button>
   </section>
 
-  <!-- REFLECT -->
+  <!-- ===== DEBRIEF ===== -->
   <section id="reflect" class="screen">
-    <h2 class="title">Nice one. You showed up.</h2>
+    <h2 class="title">Debrief</h2>
     <p class="sub" id="reflect-title"></p>
-    <div class="q-label">How was your energy before?</div>
-    <div class="faces" id="faces-before"></div>
-    <div class="q-label">And how is it now?</div>
-    <div class="faces" id="faces-after"></div>
-    <div class="q-label">Would you want more of this?</div>
-    <div class="verdicts">
-      <button class="verdict" data-v="more">🔥<br>Yes, more</button>
-      <button class="verdict" data-v="neutral">😐<br>It was okay</button>
-      <button class="verdict" data-v="never">🚫<br>Not for me</button>
+    <div class="q-label">Energy before</div>
+    <div class="scale" id="scale-before"></div>
+    <div class="scale-ends"><span>Drained</span><span>Charged</span></div>
+    <div class="q-label">Energy after</div>
+    <div class="scale" id="scale-after"></div>
+    <div class="scale-ends"><span>Drained</span><span>Charged</span></div>
+    <div class="q-label">Did you lose track of time?</div>
+    <div class="verdicts two" id="flow-row">
+      <button class="verdict" data-flow="1">Yes</button>
+      <button class="verdict" data-flow="0">No</button>
     </div>
-    <input type="text" id="note" maxlength="140" placeholder="Anything you noticed? (optional)">
-    <button class="btn primary" id="save" disabled>Add to Void</button>
-    <p class="sub center">"Not for me" counts too. Knowing that is progress.</p>
+    <div class="q-label">Do you want more of this?</div>
+    <div class="verdicts" id="pull-row">
+      <button class="verdict" data-v="more">Yes</button>
+      <button class="verdict" data-v="neutral">Maybe</button>
+      <button class="verdict" data-v="never">No</button>
+    </div>
+    <div class="q-label" id="ask-label"></div>
+    <input type="text" id="note" maxlength="160" placeholder="Optional. A few words earns bonus XP.">
+    <button class="btn primary" id="save" disabled>Complete quest</button>
+    <p class="sub center">Honest answers make your map accurate. A "no" is as useful as a "yes".</p>
   </section>
 
-  <!-- MAP -->
+  <!-- ===== MAP ===== -->
   <section id="map" class="screen">
     <h2 class="title">Your map</h2>
     <div id="map-body"></div>
   </section>
 
-  <!-- WINS -->
-  <section id="wins" class="screen">
-    <h2 class="title">Your wins</h2>
-    <div id="wins-body"></div>
+  <!-- ===== LOCKER ===== -->
+  <section id="locker" class="screen">
+    <h2 class="title">Locker</h2>
+    <div id="locker-body"></div>
+  </section>
+
+  <!-- ===== RANK ===== -->
+  <section id="rank" class="screen">
+    <h2 class="title">Rank</h2>
+    <div id="rank-body"></div>
   </section>
 
   <footer>
     Void is for exploring, not treatment. If the emptiness feels heavy or won't lift,
     you deserve real support: <a href="https://findahelpline.com" target="_blank" rel="noopener">find a helpline here</a>.
-    <br><a href="#" id="reset">Reset my data</a>
+    <br><a href="#" id="reset">Reset everything</a>
   </footer>
 </div>
 
 <nav class="tabs" aria-label="Main">
   <button class="tab active" data-go="home">Void</button>
   <button class="tab" data-go="map">Map</button>
-  <button class="tab" data-go="wins">Wins</button>
+  <button class="tab" data-go="locker">Locker</button>
+  <button class="tab" data-go="rank">Rank</button>
 </nav>
 
-<script src="experiments.js"></script>
+<div class="modal" id="modal" hidden><div class="modal-card" id="modal-card"></div></div>
+
+<script src="quests.js"></script>
+<script src="gear.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

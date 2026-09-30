@@ -1,24 +1,28 @@
 // Void — app logic. Everything is saved in your browser (localStorage); no server yet.
 const $ = (id) => document.getElementById(id);
-const KEY = "void-state-v1";
+const KEY = "void-state-v2";
+const rand = (a, b) => a + Math.random() * (b - a);
+const sample = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-let state = load();
-let pending = null;                 // experiment currently on the card
-let ref = { before: null, after: null, verdict: null };
-
+function fresh() {
+  return { profile: null, done: [], quest: null, gear: { owned: [], equipped: { head: null, eyes: null, body: null } } };
+}
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s && Array.isArray(s.done)) return { quest: null, ...s };
+    if (s && Array.isArray(s.done)) return { ...fresh(), ...s, gear: { ...fresh().gear, ...(s.gear || {}) } };
   } catch {}
-  return { done: [], quest: null };
+  return fresh();
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} }
-const getExp = (id) => EXPERIMENTS.find((e) => e.id === id);
-const rand = (a, b) => a + Math.random() * (b - a);
+
+let state = load();
+let pending = null;                               // quest currently on the card
+let ref = { before: null, after: null, flow: null, verdict: null };
+const getQuest = (id) => QUESTS.find((q) => q.id === id);
 
 // ---------- screens ----------
-const TAB_OF = { home: "home", exp: "home", reflect: "home", map: "map", wins: "wins" };
+const TAB_OF = { home: "home", exp: "home", reflect: "home", map: "map", locker: "locker", rank: "rank" };
 function show(id) {
   document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("active", s.id === id));
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.go === TAB_OF[id]));
@@ -26,40 +30,110 @@ function show(id) {
 }
 document.querySelectorAll(".tab").forEach((t) => {
   t.onclick = () => {
-    if (t.dataset.go === "map") renderMap();
-    if (t.dataset.go === "wins") renderWins();
-    if (t.dataset.go === "home") renderHome();
-    show(t.dataset.go);
+    const g = t.dataset.go;
+    if (g === "home") renderHome(true);
+    if (g === "map") renderMap();
+    if (g === "locker") renderLocker();
+    if (g === "rank") renderRank();
+    show(g);
   };
 });
 
-// ---------- progress ----------
-const GOAL = 20;    // completing 20 experiments fills the void completely
-const LEVELS = [
-  [0, "Empty void"], [1, "First spark"], [3, "Curious"], [6, "Explorer"],
-  [10, "Adventurer"], [15, "Pathfinder"], [20, "Void filler"]
-];
-const levelName = (n) => [...LEVELS].reverse().find(([min]) => n >= min)[1];
+// ---------- progress: XP, rank, campaign ----------
+const GOAL = 30;                                  // quests it takes to fill Void completely
+const totalXp = () => state.done.reduce((s, d) => s + (d.xp || 0), 0);
+function rankIdx(xp = totalXp()) { let i = 0; RANKS.forEach((r, k) => { if (xp >= r.xp) i = k; }); return i; }
+function rankProgress(xp = totalXp()) {
+  const i = rankIdx(xp), cur = RANKS[i], next = RANKS[i + 1];
+  if (!next) return { i, pct: 1, into: xp - cur.xp, need: 0, max: true };
+  return { i, pct: (xp - cur.xp) / (next.xp - cur.xp), into: xp - cur.xp, need: next.xp - cur.xp, next: next.name };
+}
+function tierUnlocked(t) {
+  if (t === "recon") return true;
+  if (t === "mission") return state.done.length >= 2;
+  return rankIdx() >= 2;                          // trials unlock at Seeker
+}
 
-function streakWeeks() {
-  const weeks = new Set(state.done.map((d) => Math.floor(d.ts / 6048e5)));
-  let w = Math.floor(Date.now() / 6048e5), s = 0;
-  if (!weeks.has(w)) w--;
-  while (weeks.has(w)) { s++; w--; }
-  return s;
+// per-field stats: your "signal" in each field
+function catStats() {
+  return Object.keys(CATEGORIES).map((k) => {
+    const list = state.done.filter((d) => d.cat === k);
+    if (!list.length) return null;
+    const delta = list.reduce((s, d) => s + (d.after - d.before), 0) / list.length;
+    const more = list.filter((d) => d.verdict === "more").length;
+    const never = list.filter((d) => d.verdict === "never").length;
+    const flow = list.filter((d) => d.flow).length;
+    return { k, list, more, never, flow, score: delta + (more - never) / list.length + flow / list.length };
+  }).filter(Boolean).sort((a, b) => b.score - a.score);
+}
+
+// Phase 1 sweeps every field once. Phase 2 leans toward the fields where you show the strongest signal.
+function pickQuest() {
+  const doneIds = state.done.map((d) => d.id);
+  const ok = (q) => tierUnlocked(q.tier) && (!pending || q.id !== pending.id);
+  let pool = QUESTS.filter((q) => ok(q) && !doneIds.includes(q.id));
+  if (!pool.length) pool = QUESTS.filter(ok);
+  if (!pool.length) return QUESTS[0];
+  const tried = new Set(state.done.map((d) => d.cat));
+  const untried = Object.keys(CATEGORIES).filter((k) => !tried.has(k));
+  if (untried.length) {
+    const p = pool.filter((q) => untried.includes(q.cat));
+    if (p.length) {
+      const low = ["recon", "mission", "trial"].find((t) => p.some((q) => q.tier === t));
+      return sample(p.filter((q) => q.tier === low));
+    }
+  }
+  const top = catStats().slice(0, 2).map((r) => r.k);
+  let pref = pool;
+  if (Math.random() < 0.65) { const p = pool.filter((q) => top.includes(q.cat)); if (p.length) pref = p; }
+  const w = { recon: 1, mission: 2, trial: 1.5 };
+  let r = Math.random() * pref.reduce((s, q) => s + w[q.tier], 0);
+  for (const q of pref) { r -= w[q.tier]; if (r <= 0) return q; }
+  return pref[0];
+}
+
+// ---------- gear ----------
+const equippedItems = () => ["head", "eyes", "body"].map((s) => state.gear.equipped[s]).filter(Boolean);
+function rollGear(tier) {
+  const owned = new Set(state.gear.owned);
+  let c = GEAR_ITEMS.filter((i) => i.endsWith(":" + tier) && !owned.has(i));
+  if (!c.length) c = GEAR_ITEMS.filter((i) => !owned.has(i));
+  return c.length ? sample(c) : null;
 }
 
 // ---------- Void the character ----------
-const SVGNS = "http://www.w3.org/2000/svg";
-const STICKER_SPOTS = { make: [30, 66], move: [212, 70], learn: [26, 152], social: [216, 150], nature: [58, 214], give: [186, 214] };
-const SPAN = 192, PER = SPAN / GOAL;
-let stickerSeen = new Set();
+const design = () => DESIGNS[state.profile.design];
+const accent = () => ACCENTS[state.profile.accent].hex;
 
+function applyLook() {
+  const d = design(), acc = accent(), e = d.eyes, lid = LID[rankIdx()];
+  document.querySelectorAll("#clip path, .hollow, .outline").forEach((x) => x.setAttribute("d", d.body));
+  $("detail").setAttribute("d", d.detail || "");
+  $("detail").style.stroke = mix(acc, "#ffffff", 0.4);
+  document.querySelector(".shine").setAttribute("d", d.shine);
+  $("glassA").setAttribute("stop-color", mix(acc, "#161221", 0.72));
+  $("glassB").setAttribute("stop-color", mix(acc, "#120e1c", 0.9));
+  const o = document.querySelector(".outline");
+  o.style.stroke = mix(acc, "#ffffff", 0.35);
+  o.style.filter = `drop-shadow(0 0 6px ${acc}99)`;
+  document.documentElement.style.setProperty("--accent", acc);
+  const eyeCol = mix(acc, "#ffffff", 0.78);
+  [["L", -1], ["R", 1]].forEach(([s, sg]) => {
+    const cx = 120 + sg * e.dx, ry = e.ry * lid;
+    const sc = $("scl" + s); sc.setAttribute("cx", cx); sc.setAttribute("cy", e.y); sc.setAttribute("rx", e.rx); sc.setAttribute("ry", ry.toFixed(1)); sc.style.fill = eyeCol;
+    const pu = $("p" + s); pu.setAttribute("cx", cx); pu.setAttribute("cy", e.y + 1.5); pu.setAttribute("r", Math.min(e.pr, ry * 0.75).toFixed(1));
+    const g = $("g" + s); g.setAttribute("cx", cx + 2); g.setAttribute("cy", e.y - 1); g.setAttribute("r", Math.max(1, e.pr * 0.32).toFixed(1));
+  });
+}
+
+const SPAN = 192, PER = SPAN / GOAL;
 function renderVoid() {
+  if (!state.profile) return;
+  applyLook();
   const n = state.done.length, f = Math.min(n / GOAL, 1);
   const layers = state.done.slice(-GOAL);
 
-  // colours blend softly into each other, newest on top, like a dusk sky in a bottle
+  // colours blend softly into each other, newest on top
   const topDown = [...layers].reverse().map((d) => CATEGORIES[d.cat].color);
   const len = topDown.length;
   $("liqgrad").innerHTML = topDown.map((col, j) => {
@@ -72,311 +146,410 @@ function renderVoid() {
 
   let bubs = "";
   for (let i = 0; i < Math.min(n, 6); i++) {
-    bubs += `<circle class="bub" cx="${rand(60, 180).toFixed(0)}" cy="${rand(20, 6 + Math.min(n, 8) * PER - 6).toFixed(0)}" r="${rand(2.5, 5).toFixed(1)}" style="animation-delay:${(-rand(0, 3.4)).toFixed(1)}s"/>`;
+    bubs += `<circle class="bub" cx="${rand(60, 180).toFixed(0)}" cy="${rand(20, 6 + Math.min(n, 12) * PER - 6).toFixed(0)}" r="${rand(2.5, 5).toFixed(1)}" style="animation-delay:${(-rand(0, 3.4)).toFixed(1)}s"/>`;
   }
   $("bubbles").innerHTML = bubs;
 
-  $("hollow-q").style.opacity = n === 0 ? 1 : 0;
-  document.querySelectorAll(".cheek").forEach((c) => c.classList.toggle("on", n >= 3));
-  setMouth(n === 0 ? 0 : n < 5 ? 1 : n < 12 ? 2 : 3);
+  $("gear").innerHTML = equippedItems().map((i) => gearSVG(i, design())).join("");
 
-  // one sticker per category you've tried
-  const tried = [...new Set(state.done.map((d) => d.cat))];
-  $("stickers").innerHTML = tried.map((k, i) => {
-    const [x, y] = STICKER_SPOTS[k];
-    return `<text class="sparkle" x="${x}" y="${y}" text-anchor="middle" fill="${CATEGORIES[k].color}" style="color:${CATEGORIES[k].color};animation-delay:${-i * 0.6}s">✦</text>`;
-  }).join("");
-
-  // a soft glow behind Void that grows as he fills, tinted by your latest colour
   const stage = document.querySelector(".stage");
-  stage.style.setProperty("--glow-o", (0.16 + f * 0.42).toFixed(2));
-  stage.style.setProperty("--glow", layers.length ? CATEGORIES[layers[layers.length - 1].cat].color : "#b4a7ea");
+  stage.style.setProperty("--glow-o", (0.16 + f * 0.36).toFixed(2));
+  stage.style.setProperty("--glow", len ? topDown[0] : accent());
 
-  $("level").textContent = `${levelName(n)} · ${n}`;
+  renderPlate();
 }
 
-function setMouth(level) {
-  const m = $("mouth"), t = $("tongue");
-  const shapes = [
-    ["M109 152 Q120 155 131 152", "none", 0],    // calm, neutral
-    ["M107 150 Q120 160 133 150", "none", 0],    // faint smile
-    ["M104 148 Q120 165 136 148", "none", 0],    // warm smile
-    ["M101 146 Q120 172 139 146", "none", 0]     // full, content smile
-  ];
-  m.setAttribute("d", shapes[level][0]);
-  m.setAttribute("fill", shapes[level][1]);
-  t.style.opacity = shapes[level][2];
+function renderPlate() {
+  const rp = rankProgress(), xp = totalXp();
+  $("vname").textContent = state.profile.name;
+  $("plate-rank").innerHTML = `${rankEmblem(rp.i, 22)}<span>${RANKS[rp.i].name}</span>`;
+  $("xp-fill").style.width = Math.round(rp.pct * 100) + "%";
+  $("xp-left").textContent = rp.max ? "Max rank" : `${rp.into} / ${rp.need} XP to ${rp.next}`;
+  $("xp-right").textContent = `${xp} XP`;
+  $("level").textContent = RANKS[rp.i].name;
 }
 
 function squish() {
   const b = $("squish");
   b.classList.remove("squish"); void b.getBoundingClientRect(); b.classList.add("squish");
-  try { navigator.vibrate && navigator.vibrate(12); } catch {}
+  try { navigator.vibrate && navigator.vibrate(10); } catch {}
 }
-
 function say(text) {
   $("bubble-text").textContent = text;
   const b = $("bubble");
   b.classList.remove("say"); void b.offsetWidth; b.classList.add("say");
 }
-
 function homeLine() {
-  const n = state.done.length;
-  if (state.quest) return "Take your time. I'll be right here when you're done.";
-  if (n === 0) return "Hey. I'm glad you're here. I feel a bit empty, and maybe you do too. Want to figure out what fills us up, together?";
-  if (n < 3) return "Thank you. I felt that. Whenever you're ready, we can try another.";
-  if (n < 8) return "I'm starting to have colour in me. That's you, working out what you like.";
-  if (n < GOAL) return "Look how far we've come. All of this colour came from you trying.";
-  return "I'm full. Every colour in me is something you tried. I'm proud of you.";
+  const n = state.done.length, name = state.profile.name;
+  if (state.quest) return "Take your time. Come back when it's done.";
+  if (n === 0) return `I'm ${name}. I don't know what I'm for yet either. Let's find out, one quest at a time.`;
+  if (new Set(state.done.map((d) => d.cat)).size < 6) return "Good. Keep sweeping. Every field you test narrows the map.";
+  if (n < 15) return "There's a pattern forming. Keep testing it.";
+  if (n < 30) return "You're not guessing anymore. You're gathering evidence.";
+  return "Look at the record. That's someone who's been paying attention.";
 }
+const POKES = ["Still here.", "No rush.", "Next move is yours.", "Small steps still count.", "You showed up. That matters.", "Keep going."];
+$("void-svg").addEventListener("pointerdown", () => { squish(); say(sample(POKES)); });
 
-const POKES = [
-  "I'm here.", "Hey. How are you doing today?", "No rush. Whenever you're ready.",
-  "That tickles a little.", "I feel a bit fuller when you're around.", "Thanks for checking in on me."
-];
-$("void-svg").addEventListener("pointerdown", () => {
-  squish();
-  say(POKES[Math.floor(Math.random() * POKES.length)]);
-});
-
-// eyes follow your finger / cursor, and wander when nothing's happening
+// eyes follow your finger / cursor, and drift when nothing's happening
 let lastPointer = 0;
+const track = () => (state.profile ? design().eyes.track : 4);
 function look(dx, dy) { ["pupL", "pupR"].forEach((id) => ($(id).style.transform = `translate(${dx}px,${dy}px)`)); }
 addEventListener("pointermove", (e) => {
   lastPointer = Date.now();
-  if (!$("home").classList.contains("active")) return;
+  if (!state.profile || !$("home").classList.contains("active")) return;
   const r = $("void-svg").getBoundingClientRect();
-  const vx = e.clientX - (r.left + r.width / 2), vy = e.clientY - (r.top + r.height * 0.44);
-  const d = Math.hypot(vx, vy) || 1, m = Math.min(4, d / 30);
+  const vx = e.clientX - (r.left + r.width / 2), vy = e.clientY - (r.top + r.height * 0.45);
+  const d = Math.hypot(vx, vy) || 1, m = Math.min(track(), d / 30);
   look((vx / d) * m, (vy / d) * m);
 });
-setInterval(() => { if (Date.now() - lastPointer > 4000) look(rand(-4, 4), rand(-3, 4)); }, 2600);
+setInterval(() => { if (state.profile && Date.now() - lastPointer > 4000) look(rand(-track(), track()), rand(-track() * 0.6, track() * 0.8)); }, 2600);
 
-// ---------- home actions: capsule, or your active quest ----------
-function renderHome() {
+// ---------- home ----------
+function campaignHTML() {
+  const tried = new Set(state.done.map((d) => d.cat));
+  const dots = Object.keys(CATEGORIES).map((k) =>
+    `<i class="cdot ${tried.has(k) ? "on" : ""}" style="--c:${CATEGORIES[k].color}" title="${CATEGORIES[k].label}"></i>`).join("");
+  let lock = "";
+  if (!tierUnlocked("mission")) lock = "Missions unlock after 2 quests.";
+  else if (!tierUnlocked("trial")) lock = "Trials unlock at rank Seeker.";
+  const lockHTML = lock ? `<p class="lock">${lock}</p>` : "";
+  if (tried.size < 6) {
+    return `<div class="campaign"><div class="c-head"><b>Phase 1 · The Sweep</b><span>${tried.size} of 6 fields</span></div>
+      <div class="cdots">${dots}</div><p>Test every field once. Patterns only show up with evidence.</p>${lockHTML}</div>`;
+  }
+  const top = catStats()[0];
+  return `<div class="campaign"><div class="c-head"><b>Phase 2 · Go Deeper</b><span>${state.done.length} quests</span></div>
+    <div class="cdots">${dots}</div>
+    <p>Strongest signal so far: <b style="color:${CATEGORIES[top.k].color}">${CATEGORIES[top.k].label}</b>. New quests lean toward it.</p>${lockHTML}</div>`;
+}
+
+function questTags(q) {
+  const c = CATEGORIES[q.cat];
+  return `<div class="tags"><span class="tier t-${q.tier}">${TIERS[q.tier].label}</span><span class="cat"><i class="dot" style="background:${c.color}"></i>${c.label}</span></div>`;
+}
+
+function renderHome(quiet) {
   const box = $("home-actions");
-  if (state.quest && getExp(state.quest.id)) {
-    const e = getExp(state.quest.id), c = CATEGORIES[e.cat];
-    box.innerHTML = `
+  const q = state.quest && getQuest(state.quest.id);
+  if (q) {
+    const c = CATEGORIES[q.cat];
+    box.innerHTML = campaignHTML() + `
       <div class="card quest" style="--c:${c.color}">
-        <div class="big-emoji">${c.emoji}</div>
-        <span class="tag">Your quest</span>
+        <span class="tag">Active quest</span>
+        ${questTags(q)}
         <h3></h3><p></p>
-        <span class="chip">⏱ about ${e.mins} min</span>
+        <span class="chip">${q.time}</span> <span class="chip">+${TIERS[q.tier].xp} XP</span>
       </div>
       <div class="stack">
-        <button class="btn primary" id="done">I did it! ✓</button>
+        <button class="btn primary" id="done">Mark complete</button>
         <button class="link" id="giveup">Swap this quest</button>
       </div>`;
-    box.querySelector("h3").textContent = e.title;
-    box.querySelector("p").textContent = e.desc;
-    $("done").onclick = () => { pending = e; openReflect(); };
-    $("giveup").onclick = () => { state.quest = null; save(); pending = pick(); showExperiment(); };
+    box.querySelector("h3").textContent = q.title;
+    box.querySelector("p").textContent = q.desc;
+    $("done").onclick = () => { pending = q; openReflect(); };
+    $("giveup").onclick = () => { pending = q; state.quest = null; save(); pending = pickQuest(); showQuest(); };
   } else {
     state.quest = null;
-    box.innerHTML = `
-      <div class="capsule-wrap">
-        <button class="capsule" id="capsule" aria-label="Crack open a mystery quest">
-          <span class="cap-top"></span><span class="cap-bot"></span><span class="cap-q">?</span>
-        </button>
-        <p class="hint">When you're ready, tap for a small quest</p>
-      </div>`;
-    $("capsule").onclick = crack;
+    box.innerHTML = campaignHTML() + `<div class="stack"><button class="btn primary" id="take">Take a quest</button></div>`;
+    $("take").onclick = scan;
   }
-  say(homeLine());
+  if (!quiet) say(homeLine());
 }
 
-function pick() {
-  const doneIds = state.done.map((d) => d.id);
-  let pool = EXPERIMENTS.filter((e) => !doneIds.includes(e.id) && (!pending || e.id !== pending.id));
-  if (!pool.length) pool = EXPERIMENTS.filter((e) => !pending || e.id !== pending.id);
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
-function crack() {
-  const btn = $("capsule");
-  btn.classList.add("shake");
-  say("Let's see what's in here…");
+function scan() {
+  const b = $("take");
+  b.disabled = true; b.textContent = "Scanning…";
+  say("Looking for a good one…");
   squish();
-  const r = btn.getBoundingClientRect();
-  setTimeout(() => {
-    burst(r.left + r.width / 2, r.top + r.height / 2, 26);
-    pending = pick();
-    showExperiment();
-  }, 720);
+  setTimeout(() => { pending = pickQuest(); showQuest(); }, 900);
 }
 
-function showExperiment() {
-  const c = CATEGORIES[pending.cat], card = $("card");
+function showQuest() {
+  const q = pending, c = CATEGORIES[q.cat], card = $("card");
   card.style.setProperty("--c", c.color);
-  card.innerHTML = `<div class="big-emoji">${c.emoji}</div><span class="tag">${c.label} quest</span><h2></h2><p></p><span class="chip">⏱ about ${pending.mins} min</span>`;
-  card.querySelector("h2").textContent = pending.title;
-  card.querySelector("p").textContent = pending.desc;
+  card.innerHTML = `${questTags(q)}<h2></h2><p class="desc"></p>
+    <div class="why"><b>Why this quest</b><p></p></div>
+    <div class="meta"><span class="chip">${q.time}</span><span class="chip">+${TIERS[q.tier].xp} XP</span><span class="chip">${GEAR_TIERS[TIERS[q.tier].gear].label} gear drop</span></div>`;
+  card.querySelector("h2").textContent = q.title;
+  card.querySelector(".desc").textContent = q.desc;
+  card.querySelector(".why p").textContent = q.why;
   card.style.animation = "none"; void card.offsetWidth; card.style.animation = "";
   show("exp");
 }
-
-$("accept").onclick = () => {
-  state.quest = { id: pending.id };
-  save(); pending = null;
-  renderHome(); show("home"); squish();
-};
-$("reroll").onclick = () => { pending = pick(); showExperiment(); };
+$("accept").onclick = () => { state.quest = { id: pending.id }; save(); pending = null; renderHome(); show("home"); squish(); };
+$("reroll").onclick = () => { pending = pickQuest(); showQuest(); };
 $("back1").onclick = () => { pending = null; renderHome(); show("home"); };
 
-// ---------- reflect ----------
-const FACES = [["😴", "drained"], ["🥱", "low"], ["😐", "okay"], ["🙂", "good"], ["⚡", "buzzing"]];
-function buildFaces(id, key) {
+// ---------- debrief ----------
+function buildScale(id, key) {
   const row = $(id);
-  row.innerHTML = FACES.map(([e, l], i) => `<button class="face" data-i="${i + 1}" aria-label="${l}" title="${l}">${e}</button>`).join("");
-  row.querySelectorAll(".face").forEach((b) => {
+  row.innerHTML = [1, 2, 3, 4, 5].map((n) => `<button class="num" data-i="${n}">${n}</button>`).join("");
+  row.querySelectorAll(".num").forEach((b) => {
     b.onclick = () => {
       ref[key] = +b.dataset.i;
-      row.querySelectorAll(".face").forEach((x) => x.classList.toggle("sel", x === b));
+      row.querySelectorAll(".num").forEach((x) => x.classList.toggle("sel", x === b));
       checkReady();
     };
   });
 }
 function checkReady() {
-  const ok = ref.before && ref.after && ref.verdict;
+  const ok = ref.before && ref.after && ref.flow !== null && ref.verdict;
   $("save").disabled = !ok;
-  $("save").textContent = ok ? "Add to Void" : "Answer all three to continue";
+  $("save").textContent = ok ? "Complete quest" : "Answer the questions to continue";
 }
 function openReflect() {
-  ref = { before: null, after: null, verdict: null };
+  ref = { before: null, after: null, flow: null, verdict: null };
   $("reflect-title").textContent = pending.title;
-  buildFaces("faces-before", "before"); buildFaces("faces-after", "after");
-  document.querySelectorAll(".verdict").forEach((b) => b.classList.remove("sel"));
+  $("ask-label").textContent = CATEGORIES[pending.cat].ask;
+  buildScale("scale-before", "before"); buildScale("scale-after", "after");
+  document.querySelectorAll("#flow-row .verdict, #pull-row .verdict").forEach((b) => b.classList.remove("sel"));
   $("note").value = "";
   checkReady();
   show("reflect");
 }
-document.querySelectorAll(".verdict").forEach((b) => {
+document.querySelectorAll("#flow-row .verdict").forEach((b) => {
+  b.onclick = () => {
+    ref.flow = b.dataset.flow === "1";
+    document.querySelectorAll("#flow-row .verdict").forEach((x) => x.classList.toggle("sel", x === b));
+    checkReady();
+  };
+});
+document.querySelectorAll("#pull-row .verdict").forEach((b) => {
   b.onclick = () => {
     ref.verdict = b.dataset.v;
-    document.querySelectorAll(".verdict").forEach((x) => x.classList.toggle("sel", x === b));
+    document.querySelectorAll("#pull-row .verdict").forEach((x) => x.classList.toggle("sel", x === b));
     checkReady();
   };
 });
 
 $("save").onclick = () => {
-  const e = pending, c = CATEGORIES[e.cat];
-  const prevLevel = levelName(state.done.length);
-  state.done.push({
-    id: e.id, cat: e.cat, ts: Date.now(),
-    before: ref.before, after: ref.after, verdict: ref.verdict, note: $("note").value.trim()
-  });
+  const q = pending, tier = TIERS[q.tier], note = $("note").value.trim();
+  const prevXp = totalXp(), prevRank = rankIdx(prevXp);
+  const xp = tier.xp + (note.length >= 10 ? 25 : 0);
+  state.done.push({ id: q.id, cat: q.cat, tier: q.tier, xp, ts: Date.now(), before: ref.before, after: ref.after, flow: ref.flow, verdict: ref.verdict, note });
+
+  const drop = rollGear(tier.gear);
+  let equipped = false;
+  if (drop) {
+    state.gear.owned.push(drop);
+    const slot = gearInfo(drop).slot;
+    if (!state.gear.equipped[slot]) { state.gear.equipped[slot] = drop; equipped = true; }
+  }
   state.quest = null; pending = null;
   save();
-  const nowLevel = levelName(state.done.length);
-  renderHome(); show("home");
+  const newXp = totalXp(), newRank = rankIdx(newXp);
+  renderHome(true); show("home");
   setTimeout(() => {
     renderVoid(); squish();
-    const r = $("void-svg").getBoundingClientRect();
-    burst(r.left + r.width / 2, r.top + r.height * 0.5, nowLevel !== prevLevel ? 70 : 34, c.color);
-    if (nowLevel !== prevLevel) {
-      say(`You've reached "${nowLevel}". That's real progress, and I felt it.`);
-      const p = $("level"); p.classList.remove("pulse"); void p.offsetWidth; p.classList.add("pulse");
-    } else {
-      const feel = { make: "creativity", move: "energy", learn: "curiosity", social: "connection", nature: "calm", give: "kindness" }[e.cat];
-      say(`Thank you. I can feel some ${feel} in me now.`);
-    }
+    openModal(completionHTML({ q, xp, prevXp, newXp, prevRank, newRank, drop, equipped }));
   }, 250);
 };
 
-// ---------- confetti ----------
-const CONF = ["#c58a9f", "#c9965c", "#6f97b8", "#6f9f86", "#c4ad72", "#b4a7ea"];
-function burst(x, y, n = 30, color) {
-  n = Math.round(n * 0.6);  // gentle, like drifting petals
-  for (let i = 0; i < n; i++) {
-    const p = document.createElement("div");
-    const s = rand(7, 12);
-    p.className = "piece";
-    p.style.width = s + "px"; p.style.height = s + "px";
-    p.style.background = color && i % 2 ? color : CONF[i % CONF.length];
-    p.style.left = x + "px"; p.style.top = y + "px";
-    document.body.appendChild(p);
-    const a = rand(0, Math.PI * 2), d = rand(40, 130);
-    p.animate([
-      { transform: "translate(0,0) rotate(0)", opacity: .95 },
-      { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d + 160}px) rotate(${rand(-200, 200)}deg)`, opacity: 0 }
-    ], { duration: rand(1800, 2800), easing: "cubic-bezier(.25,.6,.35,1)" }).onfinish = () => p.remove();
+// ---------- reward pop-up ----------
+function openModal(html) {
+  $("modal-card").innerHTML = html;
+  $("modal").hidden = false;
+  requestAnimationFrame(() => $("modal").classList.add("open"));
+}
+function closeModal() {
+  $("modal").classList.remove("open");
+  setTimeout(() => { $("modal").hidden = true; }, 250);
+}
+function completionHTML(r) {
+  const rankUp = r.newRank > r.prevRank;
+  const start = rankUp ? 0 : rankProgress(r.prevXp).pct, end = rankProgress(r.newXp);
+  let h = `<div class="m-tag">Quest complete</div><h2>${r.q.title}</h2><div class="m-xp">+${r.xp} XP</div>
+    <div class="xp big"><div id="m-fill" style="width:${Math.round(start * 100)}%" data-to="${Math.round(end.pct * 100)}"></div></div>
+    <div class="xp-meta"><span>${end.max ? "Max rank" : `${end.into} / ${end.need} XP to ${end.next}`}</span><span>${r.newXp} XP</span></div>`;
+  if (rankUp) {
+    h += `<div class="rankup">${rankEmblem(r.newRank, 44)}<div><small>Rank up</small><b>${RANKS[r.newRank].name}</b></div></div>`;
   }
+  if (r.drop) {
+    const g = gearInfo(r.drop);
+    h += `<div class="drop tier-${g.tier}">${miniVoid(state.profile.design, accent(), [r.drop], LID[rankIdx()])}
+      <div><small>${GEAR_TIERS[g.tier].label} drop</small><b>${g.label}</b><span>${r.equipped ? "Equipped" : "Slot: " + g.slot}</span></div></div>`;
+    if (!r.equipped) h += `<button class="btn" id="m-equip">Equip it</button>`;
+  }
+  h += `<button class="btn primary" id="m-close">Continue</button>`;
+  setTimeout(() => {
+    const f = $("m-fill"); if (f) f.style.width = f.dataset.to + "%";
+    const eq = $("m-equip");
+    if (eq) eq.onclick = () => { state.gear.equipped[gearInfo(r.drop).slot] = r.drop; save(); renderVoid(); eq.textContent = "Equipped"; eq.disabled = true; };
+    $("m-close").onclick = () => {
+      closeModal();
+      say(rankUp ? `Rank up: ${RANKS[r.newRank].name}. You earned that.` : sample(["Logged. That's evidence.", "Good. One more data point.", "Thank you. I can feel it.", "That counts."]));
+    };
+  }, 30);
+  return h;
 }
 
 // ---------- map ----------
 function renderMap() {
   const body = $("map-body"), n = state.done.length;
   if (n < 3) {
-    body.innerHTML = `<div class="insight">Your map shows up after 3 quests. You've done ${n} so far. Every small step sharpens the picture.</div>`;
+    body.innerHTML = `<div class="insight">Your map shows up after 3 quests. You've done ${n}. Every quest adds evidence.</div>`;
     return;
   }
-  const rows = Object.keys(CATEGORIES).map((k) => {
-    const list = state.done.filter((d) => d.cat === k);
-    if (!list.length) return null;
-    const delta = list.reduce((s, d) => s + (d.after - d.before), 0) / list.length;
-    const more = list.filter((d) => d.verdict === "more").length;
-    const never = list.filter((d) => d.verdict === "never").length;
-    return { k, list, more, never, score: delta + (more - never) / list.length };
-  }).filter(Boolean).sort((a, b) => b.score - a.score);
-
-  const top = rows[0], bottom = rows[rows.length - 1];
+  const rows = catStats(), top = rows[0], bottom = rows[rows.length - 1];
+  const flowTotal = state.done.filter((d) => d.flow).length;
   let html = "";
   if (n >= 5 && top.score > 0) {
     const c = CATEGORIES[top.k];
-    html += `<div class="insight">✨ <b>${c.label}</b> lights you up most. You had more energy after it ${top.list.length === 1 ? "once" : "in your " + top.list.length + " tries"} and wanted more ${top.more} time${top.more === 1 ? "" : "s"}. Try leaning into it.</div>`;
+    html += `<div class="insight"><b style="color:${c.color}">${c.label}</b> is your strongest signal. You came out with more energy, wanted more, or lost track of time. Your next quests lean this way.</div>`;
     if (rows.length > 1 && bottom.score < 0) {
-      html += `<div class="insight">🔋 <b>${CATEGORIES[bottom.k].label}</b> tends to drain you. Worth knowing, not worth forcing.</div>`;
+      html += `<div class="insight"><b style="color:${CATEGORIES[bottom.k].color}">${CATEGORIES[bottom.k].label}</b> tends to drain you. That's useful to know, not something to force.</div>`;
     }
   } else {
-    html += `<div class="insight">Early picture. Patterns get much clearer after 5 quests.</div>`;
+    html += `<div class="insight">Early picture. It gets much clearer after 5 quests.</div>`;
   }
+  html += `<p class="sub">Flow moments so far: <b>${flowTotal}</b>. These are the strongest clues you can collect.</p>`;
   rows.forEach((r) => {
     const c = CATEGORIES[r.k];
     const pct = Math.max(8, Math.min(100, (r.score + 2) / 4 * 100));
     html += `<div class="bar-row">
-      <div class="bar-head"><span>${c.emoji} ${c.label}</span><small>${r.list.length} tried · ${r.more} 🔥 · ${r.never} 🚫</small></div>
+      <div class="bar-head"><span><i class="dot" style="background:${c.color}"></i>${c.label}</span><small>${r.list.length} done · ${r.more} pull · ${r.flow} flow</small></div>
       <div class="bar"><div style="width:${pct}%;background:${c.color}"></div></div></div>`;
   });
   body.innerHTML = html;
 }
 
-// ---------- wins ----------
-function renderWins() {
-  const n = state.done.length, sw = streakWeeks();
-  const badges = [[1, "🌱 First try"], [3, "🧭 Curious"], [5, "🗺️ Map unlocked"], [10, "🚀 Ten down"], [20, "🌈 Void filled"]]
-    .map(([min, label]) => `<span class="badge ${n >= min ? "" : "locked"}">${label}</span>`).join("");
-  let html = `<div class="badges">${badges}</div>
-    <p class="sub">🔥 ${sw} week${sw === 1 ? "" : "s"} in a row · ${n} quest${n === 1 ? "" : "s"} done</p>`;
-  if (!n) html += `<div class="insight">Nothing here yet. Your first one is just one small step away.</div>`;
+// ---------- locker ----------
+function renderLocker() {
+  const owned = new Set(state.gear.owned), eq = state.gear.equipped, lid = LID[rankIdx()];
+  let html = `<div class="locker-prev">${miniVoid(state.profile.design, accent(), equippedItems(), lid)}</div>
+    <p class="sub center">${owned.size} of ${GEAR_ITEMS.length} items found. Every quest drops one.</p><div class="slots">`;
+  SLOTS.forEach(([s, label]) => {
+    html += `<div class="slot"><small>${label}</small><b>${eq[s] ? gearInfo(eq[s]).label : "Empty"}</b></div>`;
+  });
+  html += `</div><div class="grid">`;
+  GEAR_ITEMS.forEach((id) => {
+    const g = gearInfo(id);
+    if (owned.has(id)) {
+      html += `<button class="tile tier-${g.tier} ${eq[g.slot] === id ? "on" : ""}" data-item="${id}">${miniVoid(state.profile.design, accent(), [id], lid)}<small>${g.label}</small></button>`;
+    } else {
+      html += `<div class="tile locked"><span>?</span><small>${GEAR_TIERS[g.tier].label}</small></div>`;
+    }
+  });
+  html += `</div>`;
+  $("locker-body").innerHTML = html;
+  $("locker-body").querySelectorAll(".tile[data-item]").forEach((t) => {
+    t.onclick = () => {
+      const id = t.dataset.item, slot = gearInfo(id).slot;
+      state.gear.equipped[slot] = state.gear.equipped[slot] === id ? null : id;
+      save(); renderVoid(); renderLocker();
+    };
+  });
+}
+
+// ---------- rank ----------
+function renderRank() {
+  const rp = rankProgress(), xp = totalXp();
+  let html = `<div class="rank-hero">${rankEmblem(rp.i, 72)}<div><small>Current rank</small><b>${RANKS[rp.i].name}</b><span>${xp} XP</span></div></div>
+    <div class="xp big"><div style="width:${Math.round(rp.pct * 100)}%"></div></div>
+    <div class="xp-meta"><span>${rp.max ? "Max rank" : `${rp.into} / ${rp.need} XP to ${rp.next}`}</span><span></span></div>
+    <div class="ladder">`;
+  RANKS.forEach((r, i) => {
+    html += `<div class="rung ${i === rp.i ? "cur" : i < rp.i ? "done" : "locked"}">${rankEmblem(i, 28)}<b>${r.name}</b><span>${r.xp} XP</span></div>`;
+  });
+  html += `</div><h3 class="log-title">Quest log</h3>`;
+  if (!state.done.length) html += `<div class="insight">Nothing logged yet. Your first quest is one tap away.</div>`;
   const wrap = document.createElement("div");
   [...state.done].reverse().forEach((d) => {
-    const e = getExp(d.id);
-    const v = { more: "🔥", neutral: "😐", never: "🚫" }[d.verdict] || "";
+    const q = getQuest(d.id);
+    const v = { more: "Pull", neutral: "Maybe", never: "No pull" }[d.verdict] || "";
     const div = document.createElement("div");
     div.className = "win";
     div.style.setProperty("--c", CATEGORIES[d.cat].color);
-    div.innerHTML = `<b></b> ${v}<br><small></small>`;
-    div.querySelector("b").textContent = e ? CATEGORIES[e.cat].emoji + " " + e.title : "Quest";
-    div.querySelector("small").textContent = new Date(d.ts).toLocaleDateString() + (d.note ? " · " + d.note : "");
+    div.innerHTML = `<b></b><br><small></small>`;
+    div.querySelector("b").textContent = q ? q.title : "Quest";
+    div.querySelector("small").textContent =
+      `${CATEGORIES[d.cat].label} · ${TIERS[d.tier || (q && q.tier) || "recon"].label} · +${d.xp || 0} XP · ${v}${d.flow ? " · flow" : ""} · ${new Date(d.ts).toLocaleDateString()}${d.note ? " · " + d.note : ""}`;
     wrap.appendChild(div);
   });
-  $("wins-body").innerHTML = html + wrap.innerHTML;
+  $("rank-body").innerHTML = html + wrap.innerHTML;
+}
+
+// ---------- setup: age check, choose design, name ----------
+let ob = { i: 0, acc: 0 };
+const NAMES = ["Atlas", "Ash", "Kai", "Onyx", "Rook", "Sage", "Echo", "Nova"];
+
+$("adult").onchange = (e) => { $("begin").disabled = !e.target.checked; };
+$("begin").onclick = () => { renderPick(); show("choose"); };
+
+function renderPick(dir) {
+  const box = $("pick-void");
+  box.innerHTML = miniVoid(ob.i, ACCENTS[ob.acc].hex, [], 1);
+  if (dir) { box.classList.remove("sl", "sr"); void box.offsetWidth; box.classList.add(dir); }
+  $("pick-name").textContent = DESIGNS[ob.i].name;
+  $("pick-line").textContent = DESIGNS[ob.i].line;
+  $("pick-dots").innerHTML = DESIGNS.map((_, k) => `<i class="${k === ob.i ? "on" : ""}"></i>`).join("");
+  $("swatches").innerHTML = ACCENTS.map((a, k) => `<button class="sw ${k === ob.acc ? "sel" : ""}" data-k="${k}" style="background:${a.hex}" aria-label="${a.name}"></button>`).join("");
+  $("swatches").querySelectorAll(".sw").forEach((b) => { b.onclick = () => { ob.acc = +b.dataset.k; renderPick(); }; });
+}
+function stepPick(n) { ob.i = (ob.i + n + DESIGNS.length) % DESIGNS.length; renderPick(n > 0 ? "sr" : "sl"); }
+$("pick-prev").onclick = () => stepPick(-1);
+$("pick-next").onclick = () => stepPick(1);
+addEventListener("keydown", (e) => {
+  if (!$("choose").classList.contains("active")) return;
+  if (e.key === "ArrowLeft") stepPick(-1);
+  if (e.key === "ArrowRight") stepPick(1);
+});
+(function swipe() {
+  let x0 = null;
+  const st = $("pick-stage");
+  st.addEventListener("pointerdown", (e) => { x0 = e.clientX; });
+  addEventListener("pointerup", (e) => {
+    if (x0 === null) return;
+    const dx = e.clientX - x0; x0 = null;
+    if (Math.abs(dx) > 40) stepPick(dx < 0 ? 1 : -1);
+  });
+})();
+
+$("pick-go").onclick = () => {
+  $("namer-void").innerHTML = miniVoid(ob.i, ACCENTS[ob.acc].hex, [], 1);
+  $("sugs").innerHTML = NAMES.map((n) => `<button class="chip-btn">${n}</button>`).join("");
+  $("sugs").querySelectorAll(".chip-btn").forEach((b) => { b.onclick = () => { $("name-in").value = b.textContent; $("start").disabled = false; }; });
+  show("namer");
+};
+$("namer-back").onclick = () => show("choose");
+$("name-in").oninput = () => { $("start").disabled = !$("name-in").value.trim(); };
+$("start").onclick = () => {
+  const name = $("name-in").value.trim();
+  if (!name) return;
+  state.profile = { design: ob.i, accent: ob.acc, name, adult: true, created: Date.now() };
+  save();
+  enterApp(true);
+};
+
+function enterApp(first) {
+  document.body.classList.remove("onboarding");
+  $("liquid").style.transform = "translateY(236px)";
+  renderVoid();
+  $("liquid").style.transform = "translateY(236px)";
+  renderHome();
+  show("home");
+  setTimeout(renderVoid, first ? 200 : 350);
 }
 
 $("reset").onclick = (e) => {
   e.preventDefault();
   const r = $("reset");
   if (!r.dataset.armed) { r.dataset.armed = 1; r.textContent = "Tap again to erase everything"; return; }
-  state = { done: [], quest: null }; save();
-  delete r.dataset.armed; r.textContent = "Reset my data";
-  renderVoid(); renderHome(); show("home");
+  state = fresh(); save();
+  delete r.dataset.armed; r.textContent = "Reset everything";
+  ob = { i: 0, acc: 0 };
+  document.body.classList.add("onboarding");
+  $("adult").checked = false; $("begin").disabled = true; $("name-in").value = ""; $("start").disabled = true;
+  show("intro");
 };
 
-// first paint: start empty, then let the liquid rise to where you left off
-if (state.quest && !getExp(state.quest.id)) state.quest = null;
-renderHome();
-$("liquid").style.transform = "translateY(236px)";
-renderVoid();
-$("liquid").style.transform = "translateY(236px)";
-setTimeout(renderVoid, 350);
+// ---------- boot ----------
+$("modal").addEventListener("click", (e) => { if (e.target === $("modal") && $("m-close")) $("m-close").click(); });
+if (state.profile) {
+  if (state.quest && !getQuest(state.quest.id)) state.quest = null;
+  enterApp(false);
+} else {
+  document.body.classList.add("onboarding");
+  show("intro");
+}
