@@ -35,10 +35,10 @@ const EXPERIMENTS = [
 ];
 
 const CATEGORIES = {
-  make:   { label: "Make",   emoji: "🎨", color: "#ff7ac6" },
-  move:   { label: "Move",   emoji: "⚡", color: "#ffb84d" },
-  learn:  { label: "Learn",  emoji: "🧠", color: "#6ec1ff" },
-  social: { label: "Social", emoji: "💬", color: "#ff8a6e" },
-  nature: { label: "Nature", emoji: "🌿", color: "#6ee6a0" },
-  give:   { label: "Give",   emoji: "💛", color: "#f5e26e" }
+  make:   { label: "Make",   emoji: "🎨", color: "#e39aae" },
+  move:   { label: "Move",   emoji: "⚡", color: "#e3a765" },
+  learn:  { label: "Learn",  emoji: "🧠", color: "#86aecb" },
+  social: { label: "Social", emoji: "💬", color: "#dd9179" },
+  nature: { label: "Nature", emoji: "🌿", color: "#86b89a" },
+  give:   { label: "Give",   emoji: "💛", color: "#e2cb84" }
 };

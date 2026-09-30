@@ -275,7 +275,7 @@ $("save").onclick = () => {
 };
 
 // ---------- confetti ----------
-const CONF = ["#ff5fa2", "#ff9f1c", "#3ea8ff", "#2fcf8a", "#ffd23f", "#7c5cff"];
+const CONF = ["#e58ba5", "#e3a765", "#86aecb", "#86b89a", "#f0d07a", "#8c7bc9"];
 function burst(x, y, n = 30, color) {
   for (let i = 0; i < n; i++) {
     const p = document.createElement("div");

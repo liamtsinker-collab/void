@@ -1,6 +1,6 @@
 :root {
-  --bg: #fff3dc; --ink: #22172e; --paper: #fffdf7;
-  --purple: #7c5cff; --pink: #ff5fa2; --yellow: #ffd23f;
+  --bg: #f7efe1; --ink: #22172e; --paper: #fffdf7;
+  --purple: #8c7bc9; --pink: #e58ba5; --yellow: #f0d07a;
   --shadow: 0 5px 0 var(--ink);
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -68,7 +68,7 @@ header { display: flex; justify-content: space-between; align-items: center; }
 .pupil { fill: var(--ink); } .glint { fill: #fff; }
 #pupL, #pupR { transition: transform .25s ease-out; }
 #mouth { stroke: var(--ink); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-.cheek { fill: #ff8fb8; opacity: 0; transition: opacity .6s; }
+.cheek { fill: #eaa0b4; opacity: 0; transition: opacity .6s; }
 .cheek.on { opacity: .75; }
 .sticker { font-size: 34px; animation: bob 3s ease-in-out infinite; }
 @keyframes bob { 50% { transform: translateY(-6px) rotate(6deg); } }
