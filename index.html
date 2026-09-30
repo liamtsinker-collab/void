@@ -3,73 +3,94 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fff3dc">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Void">
 <title>Void</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div id="app">
   <header>
-    <h1>void</h1>
-    <div id="stats"></div>
+    <h1 class="logo">void</h1>
+    <div id="level" class="pill"></div>
   </header>
 
   <!-- HOME -->
   <section id="home" class="screen active">
-    <div class="blob-wrap">
-      <div class="blob"><div class="fill" id="fill"></div><div class="eyes"><i></i><i></i></div></div>
-      <p id="blob-text"></p>
+    <div class="stage">
+      <div class="bubble" id="bubble"><span id="bubble-text"></span></div>
+      <svg id="void-svg" viewBox="0 0 240 240" role="img" aria-label="Void, a blob character who fills with colour">
+        <defs>
+          <clipPath id="clip"><path d="M120 30C170 30 205 70 203 125C201 175 175 210 120 210C65 210 38 176 38 125C38 70 70 30 120 30Z"/></clipPath>
+        </defs>
+        <ellipse class="ground" cx="120" cy="226" rx="72" ry="8"/>
+        <g id="idle"><g id="squish">
+          <path class="hollow" d="M120 30C170 30 205 70 203 125C201 175 175 210 120 210C65 210 38 176 38 125C38 70 70 30 120 30Z"/>
+          <g clip-path="url(#clip)">
+            <text id="hollow-q" class="q" x="120" y="192" text-anchor="middle">?</text>
+            <g id="liquid">
+              <g id="layers"></g>
+              <path id="wave" d="M-240 0 q30 -9 60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 V8 H-240 Z"/>
+              <g id="bubbles"></g>
+            </g>
+            <path class="shine" d="M68 78 Q74 52 100 42"/>
+          </g>
+          <path class="outline" d="M120 30C170 30 205 70 203 125C201 175 175 210 120 210C65 210 38 176 38 125C38 70 70 30 120 30Z"/>
+          <g id="face">
+            <g id="cheeks"><ellipse class="cheek" cx="72" cy="140" rx="11" ry="7"/><ellipse class="cheek" cx="168" cy="140" rx="11" ry="7"/></g>
+            <g class="eye"><ellipse class="sclera" cx="94" cy="104" rx="18" ry="23"/><g id="pupL"><circle class="pupil" cx="94" cy="108" r="10"/><circle class="glint" cx="98" cy="103" r="3.6"/></g></g>
+            <g class="eye"><ellipse class="sclera" cx="146" cy="104" rx="18" ry="23"/><g id="pupR"><circle class="pupil" cx="146" cy="108" r="10"/><circle class="glint" cx="150" cy="103" r="3.6"/></g></g>
+            <path id="mouth" d=""/>
+            <ellipse id="tongue" cx="120" cy="162" rx="9" ry="5" fill="#ff6b8b" opacity="0"/>
+          </g>
+        </g></g>
+        <g id="stickers"></g>
+      </svg>
     </div>
-    <div class="slot" id="slot"><span id="slot-text">Ready when you are</span></div>
-    <button class="big" id="spin">🎲 Spin an experiment</button>
-    <div class="row">
-      <button class="ghost" id="to-map">🗺️ My map</button>
-      <button class="ghost" id="to-wins">🏆 My wins</button>
-    </div>
+    <div id="home-actions"></div>
   </section>
 
-  <!-- EXPERIMENT -->
-  <section id="exp" class="screen">
+  <!-- EXPERIMENT CARD -->
+  <section id="exp" class="screen stack">
     <div class="card" id="card"></div>
-    <button class="big" id="accept">I'll do it!</button>
-    <div class="row">
-      <button class="ghost" id="reroll">🔀 Different one</button>
-      <button class="ghost" id="back1">Not now</button>
-    </div>
+    <button class="btn primary" id="accept">Accept quest</button>
+    <button class="btn" id="reroll">🔀 Give me a different one</button>
+    <button class="link" id="back1">Not now</button>
   </section>
 
   <!-- REFLECT -->
   <section id="reflect" class="screen">
-    <h2>You did it. 🎉</h2>
+    <h2 class="title">You did it! 🎉</h2>
     <p class="sub" id="reflect-title"></p>
-    <label>How was your energy <b>before</b>? <output id="bv">3</output></label>
-    <input type="range" min="1" max="5" value="3" id="before">
-    <div class="ends"><span>😴 drained</span><span>⚡ buzzing</span></div>
-    <label>How is your energy <b>now</b>? <output id="av">3</output></label>
-    <input type="range" min="1" max="5" value="3" id="after">
-    <div class="ends"><span>😴 drained</span><span>⚡ buzzing</span></div>
-    <label>Want more of this?</label>
-    <div class="row verdicts">
-      <button class="verdict" data-v="more">🔥 More!</button>
-      <button class="verdict" data-v="neutral">😐 Meh</button>
-      <button class="verdict" data-v="never">🚫 Never again</button>
+    <div class="q-label">Energy <u>before</u></div>
+    <div class="faces" id="faces-before"></div>
+    <div class="q-label">Energy <u>now</u></div>
+    <div class="faces" id="faces-after"></div>
+    <div class="q-label">Want more of this?</div>
+    <div class="verdicts">
+      <button class="verdict" data-v="more">🔥<br>More!</button>
+      <button class="verdict" data-v="neutral">😐<br>Meh</button>
+      <button class="verdict" data-v="never">🚫<br>Never again</button>
     </div>
     <input type="text" id="note" maxlength="140" placeholder="One line about it (optional)">
-    <button class="big" id="save" disabled>Fill the void</button>
-    <p class="sub">"Never again" still counts. You learned something.</p>
+    <button class="btn primary" id="save" disabled>Feed Void</button>
+    <p class="sub center">"Never again" still counts. You learned something!</p>
   </section>
 
   <!-- MAP -->
   <section id="map" class="screen">
-    <h2>Your map 🗺️</h2>
+    <h2 class="title">Your map 🗺️</h2>
     <div id="map-body"></div>
-    <button class="ghost" data-back>← Back</button>
   </section>
 
   <!-- WINS -->
   <section id="wins" class="screen">
-    <h2>Your wins 🏆</h2>
+    <h2 class="title">Your wins 🏆</h2>
     <div id="wins-body"></div>
-    <button class="ghost" data-back>← Back</button>
   </section>
 
   <footer>
@@ -78,6 +99,13 @@
     <br><a href="#" id="reset">Reset my data</a>
   </footer>
 </div>
+
+<nav class="tabs" aria-label="Main">
+  <button class="tab active" data-go="home">🫧 Void</button>
+  <button class="tab" data-go="map">🗺️ Map</button>
+  <button class="tab" data-go="wins">🏆 Wins</button>
+</nav>
+
 <script src="experiments.js"></script>
 <script src="app.js"></script>
 </body>
