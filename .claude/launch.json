@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "void", "runtimeExecutable": "npx", "runtimeArgs": ["--yes", "http-server", "C:/Users/liamt/void", "-p", "5173", "-c-1"], "port": 5173 }
+  ]
+}
