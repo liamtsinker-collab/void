@@ -45,10 +45,10 @@ header { display: flex; justify-content: space-between; align-items: center; }
 
 #void-svg { position: relative; z-index: 1; width: min(76vw, 320px); display: block; margin: 0 auto; overflow: visible; touch-action: manipulation; cursor: pointer; }
 .ground { fill: rgba(0, 0, 0, .38); }
-.hollow { fill: #ece6f5; }
-.outline { fill: none; stroke: rgba(34, 23, 46, .55); stroke-width: 5; stroke-linejoin: round; }
-.shine { fill: none; stroke: rgba(255, 255, 255, .75); stroke-width: 6; stroke-linecap: round; }
-.q { font: 600 60px Fredoka, sans-serif; fill: rgba(34, 23, 46, .1); transition: opacity .6s; }
+.hollow { fill: url(#glass); }
+.outline { fill: none; stroke: rgba(226, 216, 250, .6); stroke-width: 3; stroke-linejoin: round; filter: drop-shadow(0 0 5px rgba(180, 167, 234, .55)); }
+.shine { fill: none; stroke: rgba(255, 255, 255, .28); stroke-width: 5; stroke-linecap: round; }
+.q { font: 500 60px Fredoka, sans-serif; fill: rgba(241, 234, 223, .1); transition: opacity .6s; }
 #liquid { transform: translateY(236px); transition: transform 2s cubic-bezier(.25, .9, .35, 1); }
 #layers rect { stroke: rgba(34, 23, 46, .18); stroke-width: 1.5; }
 #wave { animation: slosh 3.2s linear infinite; }
@@ -66,10 +66,11 @@ header { display: flex; justify-content: space-between; align-items: center; }
 }
 .eye { transform-box: fill-box; transform-origin: 50% 55%; animation: blink 5s infinite; }
 @keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.08); } }
-.sclera { fill: #fff; stroke: var(--face); stroke-width: 3.5; }
-.pupil { fill: var(--face); } .glint { fill: #fff; }
+#face { filter: drop-shadow(0 0 3px rgba(20, 14, 32, .55)); }
+.sclera { fill: #f1eadf; }
+.pupil { fill: #2a2340; } .glint { fill: #fff; }
 #pupL, #pupR { transition: transform .35s ease-out; }
-#mouth { stroke: var(--face); stroke-width: 4.5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+#mouth { stroke: #f1eadf; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
 .cheek { fill: #eaa0b4; opacity: 0; transition: opacity .8s; }
 .cheek.on { opacity: .6; }
 .sparkle { font-size: 24px; filter: drop-shadow(0 0 6px currentColor); animation: twinkle 3.6s ease-in-out infinite; }

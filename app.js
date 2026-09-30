@@ -59,11 +59,15 @@ function renderVoid() {
   const n = state.done.length, f = Math.min(n / GOAL, 1);
   const layers = state.done.slice(-GOAL);
 
-  $("layers").innerHTML = layers.map((d, i) => {
-    const fromTop = layers.length - 1 - i;
-    return `<rect x="-10" y="${6 + fromTop * PER}" width="260" height="${PER + 1.5}" fill="${CATEGORIES[d.cat].color}"/>`;
+  // colours blend softly into each other, newest on top, like a dusk sky in a bottle
+  const topDown = [...layers].reverse().map((d) => CATEGORIES[d.cat].color);
+  const len = topDown.length;
+  $("liqgrad").innerHTML = topDown.map((col, j) => {
+    const a = (j + 0.42) / len, b = (j + 0.58) / len;
+    return `<stop offset="${j === 0 ? 0 : a.toFixed(3)}" stop-color="${col}"/><stop offset="${j === len - 1 ? 1 : b.toFixed(3)}" stop-color="${col}"/>`;
   }).join("");
-  $("wave").setAttribute("fill", layers.length ? CATEGORIES[layers[layers.length - 1].cat].color : "none");
+  $("layers").innerHTML = len ? `<rect x="-10" y="6" width="260" height="${len * PER + 2}" fill="url(#liqgrad)"/>` : "";
+  $("wave").setAttribute("fill", len ? topDown[0] : "none");
   $("liquid").style.transform = `translateY(${222 - f * SPAN}px)`;
 
   let bubs = "";
@@ -94,10 +98,10 @@ function renderVoid() {
 function setMouth(level) {
   const m = $("mouth"), t = $("tongue");
   const shapes = [
-    ["M113 150 a7 8 0 1 0 14 0 a7 8 0 1 0 -14 0 Z", "#22172e", 0],   // curious little "o"
-    ["M104 148 Q120 164 136 148", "none", 0],                          // small smile
-    ["M100 146 Q120 172 140 146", "none", 0],                          // happy smile
-    ["M98 144 Q120 188 142 144 Z", "#22172e", 1]                       // big open grin
+    ["M109 152 Q120 155 131 152", "none", 0],    // calm, neutral
+    ["M107 150 Q120 160 133 150", "none", 0],    // faint smile
+    ["M104 148 Q120 165 136 148", "none", 0],    // warm smile
+    ["M101 146 Q120 172 139 146", "none", 0]     // full, content smile
   ];
   m.setAttribute("d", shapes[level][0]);
   m.setAttribute("fill", shapes[level][1]);
@@ -143,10 +147,10 @@ addEventListener("pointermove", (e) => {
   if (!$("home").classList.contains("active")) return;
   const r = $("void-svg").getBoundingClientRect();
   const vx = e.clientX - (r.left + r.width / 2), vy = e.clientY - (r.top + r.height * 0.44);
-  const d = Math.hypot(vx, vy) || 1, m = Math.min(6, d / 25);
+  const d = Math.hypot(vx, vy) || 1, m = Math.min(4, d / 30);
   look((vx / d) * m, (vy / d) * m);
 });
-setInterval(() => { if (Date.now() - lastPointer > 4000) look(rand(-6, 6), rand(-4, 5)); }, 2600);
+setInterval(() => { if (Date.now() - lastPointer > 4000) look(rand(-4, 4), rand(-3, 4)); }, 2600);
 
 // ---------- home actions: capsule, or your active quest ----------
 function renderHome() {
@@ -281,7 +285,7 @@ $("save").onclick = () => {
 };
 
 // ---------- confetti ----------
-const CONF = ["#e39aae", "#e3a765", "#86aecb", "#86b89a", "#e2cb84", "#b4a7ea"];
+const CONF = ["#c58a9f", "#c9965c", "#6f97b8", "#6f9f86", "#c4ad72", "#b4a7ea"];
 function burst(x, y, n = 30, color) {
   n = Math.round(n * 0.6);  // gentle, like drifting petals
   for (let i = 0; i < n; i++) {

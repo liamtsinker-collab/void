@@ -26,6 +26,10 @@
       <svg id="void-svg" viewBox="0 0 240 240" role="img" aria-label="Void, a blob character who fills with colour">
         <defs>
           <clipPath id="clip"><path d="M120 30C170 30 205 70 203 125C201 175 175 210 120 210C65 210 38 176 38 125C38 70 70 30 120 30Z"/></clipPath>
+          <radialGradient id="glass" cx=".38" cy=".28" r=".85">
+            <stop offset="0" stop-color="#40355e"/><stop offset="1" stop-color="#1a1528"/>
+          </radialGradient>
+          <linearGradient id="liqgrad" x1="0" y1="0" x2="0" y2="1"></linearGradient>
         </defs>
         <ellipse class="ground" cx="120" cy="226" rx="72" ry="8"/>
         <g id="idle"><g id="squish">
@@ -41,11 +45,10 @@
           </g>
           <path class="outline" d="M120 30C170 30 205 70 203 125C201 175 175 210 120 210C65 210 38 176 38 125C38 70 70 30 120 30Z"/>
           <g id="face">
-            <g id="cheeks"><ellipse class="cheek" cx="72" cy="140" rx="11" ry="7"/><ellipse class="cheek" cx="168" cy="140" rx="11" ry="7"/></g>
-            <g class="eye"><ellipse class="sclera" cx="94" cy="104" rx="18" ry="23"/><g id="pupL"><circle class="pupil" cx="94" cy="108" r="10"/><circle class="glint" cx="98" cy="103" r="3.6"/></g></g>
-            <g class="eye"><ellipse class="sclera" cx="146" cy="104" rx="18" ry="23"/><g id="pupR"><circle class="pupil" cx="146" cy="108" r="10"/><circle class="glint" cx="150" cy="103" r="3.6"/></g></g>
+            <g class="eye"><ellipse class="sclera" cx="99" cy="108" rx="11" ry="14"/><g id="pupL"><circle class="pupil" cx="99" cy="110" r="5.2"/><circle class="glint" cx="101" cy="107.5" r="1.7"/></g></g>
+            <g class="eye"><ellipse class="sclera" cx="141" cy="108" rx="11" ry="14"/><g id="pupR"><circle class="pupil" cx="141" cy="110" r="5.2"/><circle class="glint" cx="143" cy="107.5" r="1.7"/></g></g>
             <path id="mouth" d=""/>
-            <ellipse id="tongue" cx="120" cy="162" rx="9" ry="5" fill="#e0798f" opacity="0"/>
+            <ellipse id="tongue" cx="120" cy="162" rx="9" ry="5" fill="none" opacity="0"/>
           </g>
         </g></g>
         <g id="stickers"></g>
