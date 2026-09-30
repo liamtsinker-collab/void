@@ -80,8 +80,13 @@ function renderVoid() {
   const tried = [...new Set(state.done.map((d) => d.cat))];
   $("stickers").innerHTML = tried.map((k, i) => {
     const [x, y] = STICKER_SPOTS[k];
-    return `<text class="sticker" x="${x}" y="${y}" text-anchor="middle" style="animation-delay:${-i * 0.5}s">${CATEGORIES[k].emoji}</text>`;
+    return `<text class="sparkle" x="${x}" y="${y}" text-anchor="middle" fill="${CATEGORIES[k].color}" style="color:${CATEGORIES[k].color};animation-delay:${-i * 0.6}s">✦</text>`;
   }).join("");
+
+  // a soft glow behind Void that grows as he fills, tinted by your latest colour
+  const stage = document.querySelector(".stage");
+  stage.style.setProperty("--glow-o", (0.16 + f * 0.42).toFixed(2));
+  stage.style.setProperty("--glow", layers.length ? CATEGORIES[layers[layers.length - 1].cat].color : "#b4a7ea");
 
   $("level").textContent = `${levelName(n)} · ${n}`;
 }
@@ -113,17 +118,17 @@ function say(text) {
 
 function homeLine() {
   const n = state.done.length;
-  if (state.quest) return "Go go go! I'll wait right here. 👀";
-  if (n === 0) return "Hi! I'm Void. I'm a little empty… wanna help me find out what fills me up?";
-  if (n < 3) return "Ooh, I felt that! What should we try next?";
-  if (n < 8) return "I'm getting colours! I think I'm starting to know what I like.";
-  if (n < GOAL) return "Almost full. Look at all these colours. They're YOU.";
-  return "I'M FULL! Every colour in me is something you tried. What next?";
+  if (state.quest) return "Take your time. I'll be right here when you're done.";
+  if (n === 0) return "Hey. I'm glad you're here. I feel a bit empty, and maybe you do too. Want to figure out what fills us up, together?";
+  if (n < 3) return "Thank you. I felt that. Whenever you're ready, we can try another.";
+  if (n < 8) return "I'm starting to have colour in me. That's you, working out what you like.";
+  if (n < GOAL) return "Look how far we've come. All of this colour came from you trying.";
+  return "I'm full. Every colour in me is something you tried. I'm proud of you.";
 }
 
 const POKES = [
-  "Ooh! What's that?", "Hehe, that tickles!", "I wonder what we'll try today…",
-  "Do it again!", "I feel a bit fuller when you're around.", "Boop!"
+  "I'm here.", "Hey. How are you doing today?", "No rush. Whenever you're ready.",
+  "That tickles a little.", "I feel a bit fuller when you're around.", "Thanks for checking in on me."
 ];
 $("void-svg").addEventListener("pointerdown", () => {
   squish();
@@ -151,7 +156,7 @@ function renderHome() {
     box.innerHTML = `
       <div class="card quest" style="--c:${c.color}">
         <div class="big-emoji">${c.emoji}</div>
-        <span class="tag">Quest in progress</span>
+        <span class="tag">Your quest</span>
         <h3></h3><p></p>
         <span class="chip">⏱ about ${e.mins} min</span>
       </div>
@@ -170,7 +175,7 @@ function renderHome() {
         <button class="capsule" id="capsule" aria-label="Crack open a mystery quest">
           <span class="cap-top"></span><span class="cap-bot"></span><span class="cap-q">?</span>
         </button>
-        <p class="hint">Tap to crack a mystery quest</p>
+        <p class="hint">When you're ready, tap for a small quest</p>
       </div>`;
     $("capsule").onclick = crack;
   }
@@ -187,7 +192,7 @@ function pick() {
 function crack() {
   const btn = $("capsule");
   btn.classList.add("shake");
-  say("What's inside?! 👀");
+  say("Let's see what's in here…");
   squish();
   const r = btn.getBoundingClientRect();
   setTimeout(() => {
@@ -231,7 +236,7 @@ function buildFaces(id, key) {
 function checkReady() {
   const ok = ref.before && ref.after && ref.verdict;
   $("save").disabled = !ok;
-  $("save").textContent = ok ? "Feed Void 🫧" : "Pick all three to feed Void";
+  $("save").textContent = ok ? "Add to Void" : "Answer all three to continue";
 }
 function openReflect() {
   ref = { before: null, after: null, verdict: null };
@@ -266,30 +271,32 @@ $("save").onclick = () => {
     const r = $("void-svg").getBoundingClientRect();
     burst(r.left + r.width / 2, r.top + r.height * 0.5, nowLevel !== prevLevel ? 70 : 34, c.color);
     if (nowLevel !== prevLevel) {
-      say(`LEVEL UP: ${nowLevel}! 🎉`);
+      say(`You've reached "${nowLevel}". That's real progress, and I felt it.`);
       const p = $("level"); p.classList.remove("pulse"); void p.offsetWidth; p.classList.add("pulse");
     } else {
-      say(`Ooh, ${c.label.toLowerCase()}! I can feel a new colour in me. ${c.emoji}`);
+      const feel = { make: "creativity", move: "energy", learn: "curiosity", social: "connection", nature: "calm", give: "kindness" }[e.cat];
+      say(`Thank you. I can feel some ${feel} in me now.`);
     }
   }, 250);
 };
 
 // ---------- confetti ----------
-const CONF = ["#e58ba5", "#e3a765", "#86aecb", "#86b89a", "#f0d07a", "#8c7bc9"];
+const CONF = ["#e39aae", "#e3a765", "#86aecb", "#86b89a", "#e2cb84", "#b4a7ea"];
 function burst(x, y, n = 30, color) {
+  n = Math.round(n * 0.6);  // gentle, like drifting petals
   for (let i = 0; i < n; i++) {
     const p = document.createElement("div");
-    const s = rand(8, 15);
+    const s = rand(7, 12);
     p.className = "piece";
-    p.style.width = s + "px"; p.style.height = s * rand(.5, 1.2) + "px";
+    p.style.width = s + "px"; p.style.height = s + "px";
     p.style.background = color && i % 2 ? color : CONF[i % CONF.length];
     p.style.left = x + "px"; p.style.top = y + "px";
     document.body.appendChild(p);
-    const a = rand(0, Math.PI * 2), d = rand(60, 200);
+    const a = rand(0, Math.PI * 2), d = rand(40, 130);
     p.animate([
-      { transform: "translate(0,0) rotate(0)", opacity: 1 },
-      { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d + 220}px) rotate(${rand(-540, 540)}deg)`, opacity: 0 }
-    ], { duration: rand(1000, 1700), easing: "cubic-bezier(.2,.7,.4,1)" }).onfinish = () => p.remove();
+      { transform: "translate(0,0) rotate(0)", opacity: .95 },
+      { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d + 160}px) rotate(${rand(-200, 200)}deg)`, opacity: 0 }
+    ], { duration: rand(1800, 2800), easing: "cubic-bezier(.25,.6,.35,1)" }).onfinish = () => p.remove();
   }
 }
 
@@ -297,7 +304,7 @@ function burst(x, y, n = 30, color) {
 function renderMap() {
   const body = $("map-body"), n = state.done.length;
   if (n < 3) {
-    body.innerHTML = `<div class="insight">Your map appears after 3 quests. You've done ${n}. Every one sharpens the picture.</div>`;
+    body.innerHTML = `<div class="insight">Your map shows up after 3 quests. You've done ${n} so far. Every small step sharpens the picture.</div>`;
     return;
   }
   const rows = Object.keys(CATEGORIES).map((k) => {
@@ -337,7 +344,7 @@ function renderWins() {
     .map(([min, label]) => `<span class="badge ${n >= min ? "" : "locked"}">${label}</span>`).join("");
   let html = `<div class="badges">${badges}</div>
     <p class="sub">🔥 ${sw} week${sw === 1 ? "" : "s"} in a row · ${n} quest${n === 1 ? "" : "s"} done</p>`;
-  if (!n) html += `<div class="insight">No wins yet. Your first one is one capsule away.</div>`;
+  if (!n) html += `<div class="insight">Nothing here yet. Your first one is just one small step away.</div>`;
   const wrap = document.createElement("div");
   [...state.done].reverse().forEach((d) => {
     const e = getExp(d.id);
