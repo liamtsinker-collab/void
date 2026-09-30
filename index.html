@@ -21,12 +21,17 @@
 
   <!-- ===== SETUP ===== -->
   <section id="intro" class="screen">
-    <div class="intro">
-      <h1 class="hero-title">void</h1>
-      <p class="lead">Most people never find out what they're meant to do. Not because they can't, but because they never test it.</p>
-      <p class="lead soft">Void gives you real quests. You do them, log how each one made you feel, and the pattern shows you what's pulling you.</p>
-      <label class="check"><input type="checkbox" id="adult"><span>I'm 18 or older</span></label>
-      <button class="btn primary" id="begin" disabled>Begin</button>
+    <div class="guide" id="guide">
+      <button class="skip" id="skip">Skip</button>
+      <div class="bubble guide-bubble"><span id="g-text"></span></div>
+      <div class="guide-void"><div id="g-void"></div></div>
+      <div class="g-hint" id="g-hint">Tap to continue</div>
+      <div class="g-dots" id="g-dots"></div>
+      <div class="g-age" id="g-age" hidden>
+        <button class="btn primary" id="age-yes">I'm 18 or older</button>
+        <button class="btn" id="age-no">I'm under 18</button>
+      </div>
+      <button class="link" id="g-back" hidden>Start over</button>
     </div>
   </section>
 

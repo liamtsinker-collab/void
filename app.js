@@ -474,8 +474,59 @@ function renderRank() {
 let ob = { i: 0, acc: 0 };
 const NAMES = ["Atlas", "Ash", "Kai", "Onyx", "Rook", "Sage", "Echo", "Nova"];
 
-$("adult").onchange = (e) => { $("begin").disabled = !e.target.checked; };
-$("begin").onclick = () => { renderPick(); show("choose"); };
+// The intro: a Void that wakes up and explains what the app is for. Tap to advance.
+const GUIDE = [
+  { t: "Hey. Over here.", lid: 0.3 },
+  { t: "I'm Void. And I'm empty. No direction. No idea what I'm for.", lid: 0.4 },
+  { t: "Maybe you know the feeling.", lid: 0.5 },
+  { t: "Most people never work out what they're meant to do. Not because they can't. Because they never test it.", lid: 0.6 },
+  { t: "So that's what we do here. I give you real quests. You do them, then tell me honestly how each one felt.", lid: 0.7 },
+  { t: "Over time a pattern shows: what gives you energy, and what makes you lose track of time. That's your direction, in your own data.", lid: 0.8 },
+  { t: "Every quest fills me with colour, earns you rank, and unlocks gear for us both. But the real reward is knowing what you want.", lid: 0.9 },
+  { t: "One thing first: this is for adults. Are you 18 or older?", lid: 1 }
+];
+let G = { i: 0, typing: false, timer: null, full: "" };
+function startGuide() {
+  G.i = 0;
+  $("g-age").hidden = true; $("g-back").hidden = true; $("g-hint").hidden = false; $("skip").hidden = false;
+  $("g-dots").innerHTML = GUIDE.map(() => "<i></i>").join("");
+  showLine();
+  show("intro");
+}
+function showLine() {
+  const s = GUIDE[G.i];
+  $("g-void").innerHTML = miniVoid(0, ACCENTS[0].hex, [], s.lid);
+  const v = $("g-void"); v.classList.remove("hop"); void v.offsetWidth; v.classList.add("hop");
+  $("g-dots").querySelectorAll("i").forEach((d, k) => d.classList.toggle("on", k <= G.i));
+  typeText(s.t);
+}
+function typeText(t) {
+  clearInterval(G.timer);
+  G.full = t; G.typing = true;
+  const el = $("g-text"); el.textContent = "";
+  let k = 0;
+  G.timer = setInterval(() => {
+    k++; el.textContent = t.slice(0, k);
+    if (k >= t.length) { clearInterval(G.timer); G.typing = false; lineDone(); }
+  }, 24);
+}
+function lineDone() {
+  if (G.i === GUIDE.length - 1 && !G.underage) { $("g-age").hidden = false; $("g-hint").hidden = true; $("skip").hidden = true; }
+}
+function advance() {
+  if (G.typing) { clearInterval(G.timer); $("g-text").textContent = G.full; G.typing = false; lineDone(); return; }
+  if (G.i < GUIDE.length - 1) { G.i++; showLine(); }
+}
+$("intro").addEventListener("click", (e) => { if (!e.target.closest("button")) advance(); });
+addEventListener("keydown", (e) => { if ($("intro").classList.contains("active") && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); advance(); } });
+$("skip").onclick = (e) => { e.stopPropagation(); G.i = GUIDE.length - 1; showLine(); };
+$("age-yes").onclick = () => { G.underage = false; renderPick(); show("choose"); };
+$("age-no").onclick = () => {
+  G.underage = true;
+  $("g-age").hidden = true; $("g-back").hidden = false;
+  typeText("Void is for people 18 and over right now. Come back when you're ready. Look after yourself.");
+};
+$("g-back").onclick = () => { G.underage = false; startGuide(); };
 
 function renderPick(dir) {
   const box = $("pick-void");
@@ -540,8 +591,8 @@ $("reset").onclick = (e) => {
   delete r.dataset.armed; r.textContent = "Reset everything";
   ob = { i: 0, acc: 0 };
   document.body.classList.add("onboarding");
-  $("adult").checked = false; $("begin").disabled = true; $("name-in").value = ""; $("start").disabled = true;
-  show("intro");
+  $("name-in").value = ""; $("start").disabled = true;
+  startGuide();
 };
 
 // ---------- boot ----------
@@ -551,5 +602,5 @@ if (state.profile) {
   enterApp(false);
 } else {
   document.body.classList.add("onboarding");
-  show("intro");
+  startGuide();
 }

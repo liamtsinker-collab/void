@@ -5,6 +5,7 @@
   --common: #9aa3b2; --rare: #6fa8d6; --epic: #d9b96a;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
 html { background: var(--bg); }
 body {
   margin: 0; color: var(--text); min-height: 100vh;
@@ -27,12 +28,26 @@ header { display: flex; justify-content: space-between; align-items: center; }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 8px; vertical-align: 1px; }
 
 /* ---------- setup ---------- */
-.intro { padding-top: 12vh; }
-.hero-title { margin: 0 0 28px; font-size: 3.6rem; font-weight: 500; letter-spacing: .18em; text-shadow: 0 0 30px color-mix(in srgb, var(--accent) 60%, transparent); }
-.lead { font-size: 1.3rem; line-height: 1.5; margin: 0 0 16px; }
-.lead.soft { font-size: 1.05rem; color: var(--muted); margin-bottom: 30px; }
-.check { display: flex; align-items: center; gap: 12px; margin: 0 0 18px; font-size: 1.05rem; cursor: pointer; }
-.check input { width: 22px; height: 22px; accent-color: var(--accent); }
+/* guided intro: Void introduces the app */
+.guide { position: relative; text-align: center; padding-top: 9vh; min-height: 82vh; cursor: pointer; }
+.skip { position: absolute; right: 0; top: 0; background: none; border: 0; color: var(--muted); font: inherit; font-size: .9rem; padding: 8px; cursor: pointer; }
+.guide-bubble { width: 100%; max-width: 340px; min-height: 138px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; line-height: 1.5; margin-bottom: 22px; }
+.guide-void { position: relative; max-width: 230px; margin: 0 auto; animation: float 5s ease-in-out infinite; }
+.guide-void::before {
+  content: ""; position: absolute; left: 50%; top: 52%; width: 340px; height: 340px; transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--accent) 0%, transparent 62%); opacity: .22; pointer-events: none;
+}
+#g-void { position: relative; }
+#g-void.hop { animation: hop .55s ease; }
+@keyframes float { 50% { transform: translateY(-8px); } }
+@keyframes hop { 30% { transform: translateY(-14px) scale(1.03, .97); } 60% { transform: translateY(0) scale(.98, 1.03); } }
+.g-hint { color: var(--muted); margin-top: 22px; font-size: .95rem; animation: hintpulse 2.2s ease-in-out infinite; }
+@keyframes hintpulse { 50% { opacity: .35; } }
+.g-dots { display: flex; justify-content: center; gap: 7px; margin-top: 16px; }
+.g-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background .3s; }
+.g-dots i.on { background: var(--accent); }
+.g-age { margin-top: 22px; cursor: default; }
+.g-age .btn + .btn { margin-top: 12px; }
 
 .pick { display: flex; align-items: center; gap: 4px; margin-top: 18px; }
 #pick-stage { flex: 1; min-width: 0; touch-action: pan-y; user-select: none; }
