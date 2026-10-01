@@ -25,6 +25,14 @@ Drifter 0 · Wanderer 150 · Seeker 400 · Explorer 800 · Pathfinder 1,400 · T
 - It fills with layers of colour, one per quest, in the colour of the field. The colours blend into a personal gradient.
 - **Gear:** 8 items (headband, cap, headphones, glasses, visor, scar, scarf, medal) x 3 rarities (common, rare, epic) = 24 items. Each quest drops one. Equip in the Locker (slots: head, eyes, body).
 
+## Shop and monetization (see docs/BUSINESS.md)
+- The core loop is free. People pay for depth and identity.
+- **Quest packs:** The Builder Path, Hands & Trades, Creative Paths (8 quests each, 24 total).
+- **Direction Report:** free summary; full report (flow moments, what drains you, paths to explore, next 3 quests, a question to sit with) is premium.
+- **Looks:** premium designs (Specter, Titan) and a colour pack. Change your look any time in the Locker.
+- **Programs (B2B):** planned, needs accounts first.
+- Payments are NOT connected. `STORE.live` in `store.js` is false, so the Shop is a preview. `?dev=1` unlocks items locally for testing only.
+
 ## Signal scoring (per field)
 `avg(energy after - energy before) + (pull yes - pull no) / n + flow moments / n`
 

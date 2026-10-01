@@ -22,7 +22,7 @@
   <!-- ===== SETUP ===== -->
   <section id="intro" class="screen">
     <div class="guide" id="guide">
-      <button class="skip" id="skip">Skip</button>
+      <button class="skip" id="skip">Skip to the end</button>
       <div class="bubble guide-bubble"><span id="g-text"></span></div>
       <div class="guide-void"><div id="g-void"></div></div>
       <div class="g-hint" id="g-hint">Tap to continue</div>
@@ -146,6 +146,19 @@
     <div id="map-body"></div>
   </section>
 
+  <!-- ===== DIRECTION REPORT ===== -->
+  <section id="report" class="screen">
+    <h2 class="title">Direction Report</h2>
+    <div id="report-body"></div>
+    <button class="link" id="report-back">Back to map</button>
+  </section>
+
+  <!-- ===== SHOP ===== -->
+  <section id="shop" class="screen">
+    <h2 class="title">Shop</h2>
+    <div id="shop-body"></div>
+  </section>
+
   <!-- ===== LOCKER ===== -->
   <section id="locker" class="screen">
     <h2 class="title">Locker</h2>
@@ -170,10 +183,12 @@
   <button class="tab" data-go="map">Map</button>
   <button class="tab" data-go="locker">Locker</button>
   <button class="tab" data-go="rank">Rank</button>
+  <button class="tab" data-go="shop">Shop</button>
 </nav>
 
 <div class="modal" id="modal" hidden><div class="modal-card" id="modal-card"></div></div>
 
+<script src="store.js"></script>
 <script src="quests.js"></script>
 <script src="gear.js"></script>
 <script src="app.js"></script>

@@ -26,7 +26,11 @@ const ACCENTS = [
   { name: "Ember",  hex: "#dba070" },
   { name: "Moss",   hex: "#8fbf9f" },
   { name: "Rose",   hex: "#d590a5" },
-  { name: "Bone",   hex: "#ddd3bf" }
+  { name: "Bone",   hex: "#ddd3bf" },
+  // premium colours (sold in the Shop as a pack)
+  { name: "Crimson", hex: "#cf7c7c", premium: true },
+  { name: "Teal",    hex: "#6fb5b0", premium: true },
+  { name: "Gold",    hex: "#d9b96a", premium: true }
 ];
 
 // ---------- body designs ----------
@@ -51,7 +55,19 @@ const DESIGNS = [
     body: "M120 26C132 62 192 100 197 148C201 186 165 210 120 210C75 210 39 186 43 148C48 100 108 62 120 26Z",
     shine: "M92 98 Q100 74 116 60", detail: "",
     eyes: { y: 134, dx: 20, rx: 8, ry: 15, pr: 4.4, track: 3 },
-    a: { bandY: 108, bandL: 66, bandR: 174, top: 26, neckY: 180, neckL: 50, neckR: 190, sideY: 134, sideL: 44, sideR: 196 } }
+    a: { bandY: 108, bandL: 66, bandR: 174, top: 26, neckY: 180, neckL: 50, neckR: 190, sideY: 134, sideL: 44, sideR: 196 } },
+
+  // ---- premium designs (sold in the Shop) ----
+  { id: "specter", name: "Specter", line: "Haunted. Hard to read.", premium: true,
+    body: "M120 30C160 30 188 62 188 110V196L170 184L152 206L136 186L120 208L104 186L88 206L70 184L52 196V110C52 62 80 30 120 30Z",
+    shine: "M72 76 Q78 54 100 44", detail: "",
+    eyes: { y: 100, dx: 22, rx: 10, ry: 14, pr: 4.8, track: 3.5 },
+    a: { bandY: 64, bandL: 60, bandR: 180, top: 30, neckY: 168, neckL: 54, neckR: 186, sideY: 100, sideL: 52, sideR: 188 } },
+  { id: "titan", name: "Titan", line: "Heavy. Doesn't back down.", premium: true,
+    body: "M72 38H168L200 78V172L168 208H72L40 172V78Z",
+    shine: "M62 82 L84 54", detail: "M72 112H168M120 112V208",
+    eyes: { y: 96, dx: 28, rx: 13, ry: 8, pr: 4, track: 3 },
+    a: { bandY: 66, bandL: 56, bandR: 184, top: 38, neckY: 172, neckL: 44, neckR: 196, sideY: 100, sideL: 40, sideR: 200 } }
 ];
 
 // ---------- gear ----------

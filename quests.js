@@ -126,8 +126,111 @@ const QUESTS = [
     why: "Some people find their direction in serving. See whether you feel it." },
   { id: 37, cat: "give", tier: "trial",   time: "1-2 hours", title: "Mentor or coach someone for an hour",
     desc: "Offer to help someone younger with homework, a sport, a job application or a skill. Show up prepared.",
-    why: "Responsibility for another person's progress shows what kind of leader you'd be." }
+    why: "Responsibility for another person's progress shows what kind of leader you'd be." },
+
+  // ================= PREMIUM PACK: THE BUILDER PATH =================
+  { id: 101, pack: "builder", cat: "learn", tier: "recon", time: "30 min", title: "Find a problem worth solving",
+    desc: "List ten things that annoyed you this week, big or small. Circle the three other people probably share.",
+    why: "Every real business starts with a problem you're close enough to feel." },
+  { id: 102, pack: "builder", cat: "learn", tier: "recon", time: "30 min", title: "Study a business near you",
+    desc: "Pick a local business. Work out who pays them, for what, and how they probably got their first customers.",
+    why: "Seeing how money actually moves makes building something feel less abstract." },
+  { id: 103, pack: "builder", cat: "social", tier: "mission", time: "1 hour", title: "Ask three people about a problem",
+    desc: "Pick a problem you care about. Ask three people whether they have it and what they do about it now. Don't pitch anything. Just listen.",
+    why: "Listening before building is the skill most first-time founders skip." },
+  { id: 104, pack: "builder", cat: "make", tier: "mission", time: "2 hours", title: "Build the smallest possible test",
+    desc: "A one-page site, a mock-up, a spreadsheet, a short pitch. Anything a stranger could react to in under a minute.",
+    why: "Shows whether you enjoy turning an idea into something real, fast and rough." },
+  { id: 105, pack: "builder", cat: "make", tier: "mission", time: "1 hour", title: "Put a price on it",
+    desc: "Decide what your idea would cost and write down why. Then ask two people whether it feels fair.",
+    why: "Pricing forces you to believe your idea is worth something." },
+  { id: 106, pack: "builder", cat: "learn", tier: "mission", time: "90 min", title: "Read a founder's first year",
+    desc: "Find a long, honest account of a founder's first year: an interview, a podcast, a blog. Note the unglamorous parts.",
+    why: "If the boring parts sound bearable, that's a strong sign." },
+  { id: 107, pack: "builder", cat: "social", tier: "trial", time: "3 hours", title: "Get a stranger to say yes or no",
+    desc: "Show what you made to someone you don't know and ask them to buy it, sign up or commit. A no counts as a win.",
+    why: "Handling rejection decides whether you can build anything for other people." },
+  { id: 108, pack: "builder", cat: "give", tier: "trial", time: "3 hours", title: "Solve it for one person for free",
+    desc: "Offer to solve the problem for one person at no charge. Do it properly. Notice how it feels to be useful.",
+    why: "Shows whether the work itself, not the money, is what pulls you." },
+
+  // ================= PREMIUM PACK: HANDS & TRADES =================
+  { id: 111, pack: "trades", cat: "social", tier: "recon", time: "20 min", title: "Ask a tradesperson what they'd tell a 20-year-old",
+    desc: "An electrician, carpenter, mechanic, plumber, welder. Ask what the job is really like and how they got started.",
+    why: "Trades are well paid and under-explored. Hear it from someone actually doing it." },
+  { id: 112, pack: "trades", cat: "learn", tier: "recon", time: "30 min", title: "Look up three apprenticeships",
+    desc: "Find the entry route, length, pay and requirements for three trades near you. Write them side by side.",
+    why: "A real path is easier to want when you can see its first step." },
+  { id: 113, pack: "trades", cat: "make", tier: "mission", time: "90 min", title: "Do a small repair with real tools",
+    desc: "Replace a tap washer, patch a wall, change a bike chain, swap a plug. Follow a tutorial and do it for real.",
+    why: "Hands-on work either feels satisfying or it doesn't. Find out which." },
+  { id: 114, pack: "trades", cat: "nature", tier: "mission", time: "1-2 hours", title: "Watch a trade at work",
+    desc: "Ask a local tradesperson or workshop if you can watch for an hour. Notice the pace, the tools and the mood.",
+    why: "You can only picture yourself in a job after you've seen it up close." },
+  { id: 115, pack: "trades", cat: "move", tier: "mission", time: "3 hours", title: "Do a physical day's labour",
+    desc: "Help someone move house, dig a garden, build a fence or clear a space. Three hours of real physical work.",
+    why: "Shows whether you enjoy work that ends in something you can see." },
+  { id: 116, pack: "trades", cat: "learn", tier: "mission", time: "90 min", title: "Learn to read a plan or diagram",
+    desc: "Learn to read a basic floor plan, wiring diagram or technical drawing. Find a beginner guide and work through one example.",
+    why: "Technical thinking is the core of most skilled trades." },
+  { id: 117, pack: "trades", cat: "make", tier: "trial", time: "4 hours", title: "Build something that has to hold weight",
+    desc: "A shelf, a bench, a frame. It has to work, and it has to survive being used.",
+    why: "When it has to work, you find out how you handle precision and mistakes." },
+  { id: 118, pack: "trades", cat: "social", tier: "trial", time: "Half a day", title: "Ask for a day of work experience",
+    desc: "Contact a local business and ask if you can shadow someone for a day. Be polite, clear and ready to be told no.",
+    why: "Asking for the chance is itself a test of how much you want it." },
+
+  // ================= PREMIUM PACK: CREATIVE PATHS =================
+  { id: 121, pack: "creative", cat: "make", tier: "recon", time: "30 min", title: "Make ten rough versions",
+    desc: "Take one idea (a logo, a hook, a scene, a sketch) and make ten rough versions in 30 minutes. Don't judge until all ten exist.",
+    why: "Creative careers reward volume. See whether you enjoy the churn." },
+  { id: 122, pack: "creative", cat: "learn", tier: "recon", time: "30 min", title: "Break down something you love",
+    desc: "Take a film scene, a song or a design you love and work out exactly why it works.",
+    why: "What you notice shows what you're drawn to making." },
+  { id: 123, pack: "creative", cat: "make", tier: "mission", time: "2 hours", title: "Finish a piece under constraints",
+    desc: "Set tight rules: one colour, three chords, 100 words, one location. Finish something in two hours.",
+    why: "Constraints show whether you get energy from limits or feel stifled by them." },
+  { id: 124, pack: "creative", cat: "social", tier: "mission", time: "45 min", title: "Ask a working creative how they get paid",
+    desc: "Message or meet someone who earns from creative work. Ask how they started, how they price their work and what the first year was like.",
+    why: "The money side of creative work is where most dreams get tested." },
+  { id: 125, pack: "creative", cat: "make", tier: "mission", time: "15 min a day, 7 days", title: "Run a seven-day practice",
+    desc: "Pick one creative practice and do 15 minutes a day for seven days. Log it, even when it's bad.",
+    why: "Seven days is enough to show whether you want to keep going once it's no longer new." },
+  { id: 126, pack: "creative", cat: "learn", tier: "mission", time: "90 min", title: "Study how a creative career really works",
+    desc: "Pick a career: illustration, audio engineering, game design, filmmaking. Find out how people earn, what the entry jobs are and what a typical week looks like.",
+    why: "Knowing the real shape of a career lets you decide whether you want it." },
+  { id: 127, pack: "creative", cat: "social", tier: "trial", time: "2 hours", title: "Show unfinished work to a stranger",
+    desc: "Share something half-done with someone you don't know and ask what they notice. Don't defend it.",
+    why: "Tolerance for feedback is one of the biggest predictors of a creative career." },
+  { id: 128, pack: "creative", cat: "make", tier: "trial", time: "4 hours", title: "Make something for a real deadline",
+    desc: "Pick a real deadline: a friend's birthday, a local event, a submission date. Make something for it and ship it on time.",
+    why: "Deadlines show whether you work better under pressure or in spite of it." }
 ];
+
+// Premium quest packs (sold in the Shop). Quests with a "pack" only appear once that pack is owned.
+const PACKS = {
+  builder:  { name: "The Builder Path", tag: "For people who want to start something of their own." },
+  trades:   { name: "Hands & Trades",   tag: "Test skilled trades and practical, physical work." },
+  creative: { name: "Creative Paths",   tag: "Find out if a creative career is really for you." }
+};
+
+// Used by the Direction Report. Not career advice: just paths people with each signal often explore.
+const FIELD_PATHS = {
+  make:   "design, engineering, film and video, game development, architecture, the skilled trades",
+  move:   "coaching, physiotherapy, sports science, emergency services, the military, outdoor education",
+  learn:  "research, engineering, medicine, law, data and analysis, writing",
+  social: "sales, teaching, counselling, recruiting, management, community work",
+  nature: "surveying, logistics, conservation, travel and hospitality, field work, outdoor roles",
+  give:   "nursing, social work, teaching, non-profits, youth work, community leadership"
+};
+const FIELD_PROMPTS = {
+  make:   "When you make something, which part would you do for free: the idea, the building, or showing it to people?",
+  move:   "When it got hard, did you want to stop, or did you want to find out how far you could go?",
+  learn:  "What's the one question you couldn't stop thinking about afterwards, and have you looked it up yet?",
+  social: "Did you come away energised by the people, or by what you learned from them?",
+  nature: "What did you think about when everything went quiet, and why do you think that came up?",
+  give:   "Would you still do it if nobody ever knew, and what does your answer say about what you value?"
+};
 
 const TIERS = {
   recon:   { label: "Recon",   xp: 50,  gear: "common" },

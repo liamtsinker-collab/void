@@ -5,12 +5,16 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const sample = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 function fresh() {
-  return { profile: null, done: [], quest: null, gear: { owned: [], equipped: { head: null, eyes: null, body: null } } };
+  return {
+    profile: null, done: [], quest: null,
+    gear: { owned: [], equipped: { head: null, eyes: null, body: null } },
+    ent: { report: false, packs: [], designs: [], accents: false }     // what the user has unlocked in the Shop
+  };
 }
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s && Array.isArray(s.done)) return { ...fresh(), ...s, gear: { ...fresh().gear, ...(s.gear || {}) } };
+    if (s && Array.isArray(s.done)) return { ...fresh(), ...s, gear: { ...fresh().gear, ...(s.gear || {}) }, ent: { ...fresh().ent, ...(s.ent || {}) } };
   } catch {}
   return fresh();
 }
@@ -21,8 +25,24 @@ let pending = null;                               // quest currently on the card
 let ref = { before: null, after: null, flow: null, verdict: null };
 const getQuest = (id) => QUESTS.find((q) => q.id === id);
 
+// ---------- what you own (Shop unlocks) ----------
+const hasReport = () => !!state.ent.report;
+const hasPack = (id) => !id || id === "core" || state.ent.packs.includes(id);
+const hasDesign = (i) => !DESIGNS[i].premium || state.ent.designs.includes(DESIGNS[i].id);
+const hasAccent = (i) => !ACCENTS[i].premium || !!state.ent.accents;
+const FREE_DESIGNS = DESIGNS.map((_, i) => i).filter((i) => !DESIGNS[i].premium);
+const FREE_ACCENTS = ACCENTS.map((_, i) => i).filter((i) => !ACCENTS[i].premium);
+
+let toastTimer;
+function toast(msg) {
+  let t = document.getElementById("toast");
+  if (!t) { t = document.createElement("div"); t.id = "toast"; t.className = "toast"; document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
 // ---------- screens ----------
-const TAB_OF = { home: "home", exp: "home", reflect: "home", map: "map", locker: "locker", rank: "rank" };
+const TAB_OF = { home: "home", exp: "home", reflect: "home", map: "map", report: "map", locker: "locker", rank: "rank", shop: "shop" };
 function show(id) {
   document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("active", s.id === id));
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.go === TAB_OF[id]));
@@ -35,6 +55,7 @@ document.querySelectorAll(".tab").forEach((t) => {
     if (g === "map") renderMap();
     if (g === "locker") renderLocker();
     if (g === "rank") renderRank();
+    if (g === "shop") renderShop();
     show(g);
   };
 });
@@ -70,7 +91,7 @@ function catStats() {
 // Phase 1 sweeps every field once. Phase 2 leans toward the fields where you show the strongest signal.
 function pickQuest() {
   const doneIds = state.done.map((d) => d.id);
-  const ok = (q) => tierUnlocked(q.tier) && (!pending || q.id !== pending.id);
+  const ok = (q) => tierUnlocked(q.tier) && hasPack(q.pack) && (!pending || q.id !== pending.id);
   let pool = QUESTS.filter((q) => ok(q) && !doneIds.includes(q.id));
   if (!pool.length) pool = QUESTS.filter(ok);
   if (!pool.length) return QUESTS[0];
@@ -226,7 +247,8 @@ function campaignHTML() {
 
 function questTags(q) {
   const c = CATEGORIES[q.cat];
-  return `<div class="tags"><span class="tier t-${q.tier}">${TIERS[q.tier].label}</span><span class="cat"><i class="dot" style="background:${c.color}"></i>${c.label}</span></div>`;
+  const pk = q.pack ? `<span class="cat">· ${PACKS[q.pack].name}</span>` : "";
+  return `<div class="tags"><span class="tier t-${q.tier}">${TIERS[q.tier].label}</span><span class="cat"><i class="dot" style="background:${c.color}"></i>${c.label}</span>${pk}</div>`;
 }
 
 function renderHome(quiet) {
@@ -411,7 +433,15 @@ function renderMap() {
       <div class="bar-head"><span><i class="dot" style="background:${c.color}"></i>${c.label}</span><small>${r.list.length} done · ${r.more} pull · ${r.flow} flow</small></div>
       <div class="bar"><div style="width:${pct}%;background:${c.color}"></div></div></div>`;
   });
-  body.innerHTML = html;
+  body.innerHTML = reportCardHTML() + html;
+  const rb = $("open-report");
+  if (rb) rb.onclick = () => { renderReport(); show("report"); };
+}
+
+function reportCardHTML() {
+  const n = state.done.length;
+  return `<div class="rep-card"><div><b>Direction Report</b><small>${n < 5 ? `Unlocks after 5 quests (${n} so far)` : hasReport() ? "Your full report is ready" : "Free summary, with a full report to unlock"}</small></div>
+    <button class="btn" id="open-report" ${n < 5 ? "disabled" : ""}>Open</button></div>`;
 }
 
 // ---------- locker ----------
@@ -422,7 +452,7 @@ function renderLocker() {
   SLOTS.forEach(([s, label]) => {
     html += `<div class="slot"><small>${label}</small><b>${eq[s] ? gearInfo(eq[s]).label : "Empty"}</b></div>`;
   });
-  html += `</div><div class="grid">`;
+  html += `</div>` + appearanceHTML() + `<h3 class="log-title">Gear</h3><div class="grid">`;
   GEAR_ITEMS.forEach((id) => {
     const g = gearInfo(id);
     if (owned.has(id)) {
@@ -433,6 +463,7 @@ function renderLocker() {
   });
   html += `</div>`;
   $("locker-body").innerHTML = html;
+  bindAppearance();
   $("locker-body").querySelectorAll(".tile[data-item]").forEach((t) => {
     t.onclick = () => {
       const id = t.dataset.item, slot = gearInfo(id).slot;
@@ -441,6 +472,123 @@ function renderLocker() {
     };
   });
 }
+
+// ---------- appearance (change design / colour later) ----------
+function appearanceHTML() {
+  const p = state.profile;
+  const designs = DESIGNS.map((d, i) =>
+    `<button class="app-chip ${p.design === i ? "sel" : ""} ${hasDesign(i) ? "" : "lk"}" data-design="${i}">${d.name}${hasDesign(i) ? "" : '<span class="lkt">Premium</span>'}</button>`).join("");
+  const sw = ACCENTS.map((a, i) =>
+    `<button class="sw ${p.accent === i ? "sel" : ""} ${hasAccent(i) ? "" : "lk"}" data-accent="${i}" style="background:${a.hex}" aria-label="${a.name}${hasAccent(i) ? "" : " (premium)"}"></button>`).join("");
+  return `<h3 class="log-title">Appearance</h3><div class="app-chips">${designs}</div><div class="swatches app-sw">${sw}</div>`;
+}
+function bindAppearance() {
+  document.querySelectorAll("#locker-body [data-design]").forEach((b) => {
+    b.onclick = () => {
+      const i = +b.dataset.design;
+      if (!hasDesign(i)) { renderShop(); show("shop"); toast("That look is in the Shop."); return; }
+      state.profile.design = i; save(); renderVoid(); renderLocker();
+    };
+  });
+  document.querySelectorAll("#locker-body [data-accent]").forEach((b) => {
+    b.onclick = () => {
+      const i = +b.dataset.accent;
+      if (!hasAccent(i)) { renderShop(); show("shop"); toast("That colour pack is in the Shop."); return; }
+      state.profile.accent = i; save(); renderVoid(); renderLocker();
+    };
+  });
+}
+
+// ---------- shop ----------
+function buyHTML(kind, id, price, owned) {
+  if (owned) return `<span class="owned">Owned</span>`;
+  if (STORE.live) return `<button class="btn" data-buy="${kind}:${id}">Buy · ${price}</button>`;
+  if (DEV) return `<button class="btn" data-buy="${kind}:${id}">Unlock (dev) · ${price}</button>`;
+  return `<button class="btn" disabled>Coming soon · ${price}</button>`;
+}
+function renderShop() {
+  let html = STORE.live ? "" : DEV
+    ? `<div class="insight">Developer mode: unlocking here is local and free. No real payments.</div>`
+    : `<div class="insight">Payments aren't connected yet. This is a preview of what's coming.</div>`;
+
+  html += `<h3 class="log-title">Direction Report</h3>
+    <div class="shop-card"><b>Your full Direction Report</b>
+    <p>Your flow moments, what drains you, paths people with your pattern explore, your next three quests, and a question to sit with. Built from your own answers. The summary is always free.</p>
+    ${buyHTML("report", "report", STORE.prices.report, hasReport())}</div>`;
+
+  html += `<h3 class="log-title">Quest packs</h3>`;
+  Object.keys(PACKS).forEach((id) => {
+    const qs = QUESTS.filter((q) => q.pack === id);
+    html += `<div class="shop-card"><b>${PACKS[id].name}</b><p>${PACKS[id].tag}</p>
+      <small>${qs.length} quests, including Missions and Trials. Starts with: ${qs.slice(0, 2).map((q) => q.title).join(" · ")}</small>
+      ${buyHTML("pack", id, STORE.prices.pack, hasPack(id))}</div>`;
+  });
+
+  html += `<h3 class="log-title">Looks</h3><div class="looks">`;
+  DESIGNS.forEach((d, i) => {
+    if (!d.premium) return;
+    html += `<div class="shop-card look"><div class="look-prev">${miniVoid(i, accent(), [], LID[rankIdx()])}</div><b>${d.name}</b><small>${d.line}</small>
+      ${buyHTML("design", d.id, STORE.prices.design, hasDesign(i))}</div>`;
+  });
+  html += `</div><div class="shop-card"><b>Colour pack</b><p>Crimson, Teal and Gold.</p>
+    <div class="swatches">${ACCENTS.filter((a) => a.premium).map((a) => `<i class="sw static" style="background:${a.hex}"></i>`).join("")}</div>
+    ${buyHTML("accents", "all", STORE.prices.accents, state.ent.accents)}</div>`;
+
+  $("shop-body").innerHTML = html;
+  $("shop-body").querySelectorAll("[data-buy]").forEach((b) => { b.onclick = () => buy(...b.dataset.buy.split(":")); });
+}
+function buy(kind, id) {
+  if (STORE.live) { toast("Checkout isn't built yet."); return; }          // real payment flow goes here later
+  if (!DEV) { toast("Payments aren't connected yet."); return; }
+  if (kind === "report") state.ent.report = true;
+  if (kind === "pack" && !state.ent.packs.includes(id)) state.ent.packs.push(id);
+  if (kind === "design" && !state.ent.designs.includes(id)) state.ent.designs.push(id);
+  if (kind === "accents") state.ent.accents = true;
+  save(); renderShop(); toast("Unlocked (dev mode).");
+}
+
+// ---------- direction report ----------
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function renderReport() {
+  const body = $("report-body"), n = state.done.length;
+  if (n < 5) { body.innerHTML = `<div class="insight">Your Direction Report unlocks after 5 quests. You've done ${n}.</div>`; return; }
+  const rows = catStats(), top = rows[0], c = CATEGORIES[top.k], full = hasReport();
+  const colour = (k) => `<b style="color:${CATEGORIES[k].color}">${CATEGORIES[k].label}</b>`;
+  const lockedCard = (t) => `<div class="rep locked"><h4>${t}</h4><p>Part of the full report.</p></div>`;
+  const sec = (t, inner) => (full ? `<div class="rep"><h4>${t}</h4>${inner}</div>` : lockedCard(t));
+
+  let html = `<p class="sub">Based on your ${n} quests. It's a pattern in your own answers, not career advice or a diagnosis.</p>
+    <div class="rep"><h4>Your pattern</h4><p>Your strongest signal is ${colour(top.k)}: ${top.list.length} quest${top.list.length === 1 ? "" : "s"}, ${top.more} you wanted more of, and ${top.flow} where you lost track of time.${rows[1] ? ` Next strongest is ${colour(rows[1].k)}.` : ""}</p></div>`;
+  if (!full) html += `<button class="btn primary" id="rep-unlock">Unlock the full report · ${STORE.prices.report}</button>`;
+
+  const flows = state.done.filter((d) => d.flow);
+  html += sec("Your flow moments", `<ul>${flows.length ? flows.map((d) => {
+    const q = getQuest(d.id);
+    return `<li><b>${esc(q ? q.title : "Quest")}</b>${d.note ? `<br><small>${esc(d.note)}</small>` : ""}</li>`;
+  }).join("") : "<li>None yet. Flow is rare, so keep testing.</li>"}</ul>`);
+
+  const drains = rows.filter((r) => r.score < 0);
+  html += sec("What drains you", drains.length
+    ? `<p>These fields tended to leave you with less energy: ${drains.map((r) => colour(r.k)).join(", ")}. Worth knowing, not worth forcing.</p>`
+    : `<p>Nothing has drained you consistently yet.</p>`);
+
+  const t2 = rows.slice(0, 2).map((r) => r.k);
+  html += sec("Paths people with this pattern explore", t2.map((k) => `<p>${colour(k)}: ${FIELD_PATHS[k]}.</p>`).join("") +
+    `<p class="small">These are starting points to research, not recommendations.</p>`);
+
+  const doneIds = state.done.map((d) => d.id);
+  const avail = QUESTS.filter((q) => !doneIds.includes(q.id) && hasPack(q.pack) && tierUnlocked(q.tier));
+  const next = [...avail.filter((q) => t2.includes(q.cat)), ...avail.filter((q) => !t2.includes(q.cat))].slice(0, 3);
+  html += sec("Your next three quests", next.length
+    ? `<ul>${next.map((q) => `<li><b>${esc(q.title)}</b><br><small>${esc(q.why)}</small></li>`).join("")}</ul>`
+    : `<p>You've done everything available. New quests are coming.</p>`);
+
+  html += sec("A question to sit with", `<p>${FIELD_PROMPTS[top.k]}</p>`);
+  body.innerHTML = html;
+  const u = $("rep-unlock");
+  if (u) u.onclick = () => { renderShop(); show("shop"); };
+}
+$("report-back").onclick = () => { renderMap(); show("map"); };
 
 // ---------- rank ----------
 function renderRank() {
@@ -476,13 +624,11 @@ const NAMES = ["Atlas", "Ash", "Kai", "Onyx", "Rook", "Sage", "Echo", "Nova"];
 
 // The intro: a Void that wakes up and explains what the app is for. Tap to advance.
 const GUIDE = [
-  { t: "Hey. Over here.", lid: 0.3 },
-  { t: "I'm Void. And I'm empty. No direction. No idea what I'm for.", lid: 0.4 },
-  { t: "Maybe you know the feeling.", lid: 0.5 },
-  { t: "Most people never work out what they're meant to do. Not because they can't. Because they never test it.", lid: 0.6 },
-  { t: "So that's what we do here. I give you real quests. You do them, then tell me honestly how each one felt.", lid: 0.7 },
-  { t: "Over time a pattern shows: what gives you energy, and what makes you lose track of time. That's your direction, in your own data.", lid: 0.8 },
-  { t: "Every quest fills me with colour, earns you rank, and unlocks gear for us both. But the real reward is knowing what you want.", lid: 0.9 },
+  { t: "Hey. Over here.", lid: 0.35 },
+  { t: "I'm Void. And I'm empty. No direction. No idea what I'm for. Maybe you know the feeling.", lid: 0.5 },
+  { t: "Most people never work out what they're meant to do. Not because they can't. Because they never test it.", lid: 0.65 },
+  { t: "So that's what we do here. I give you real quests. You do them, then tell me honestly how each one felt.", lid: 0.8 },
+  { t: "Over time a pattern shows: what gives you energy, and what makes you lose track of time. That's your direction, in your own data. And every quest fills me with colour.", lid: 0.9 },
   { t: "One thing first: this is for adults. Are you 18 or older?", lid: 1 }
 ];
 let G = { i: 0, typing: false, timer: null, full: "" };
@@ -503,8 +649,8 @@ function showLine() {
 function typeText(t) {
   clearInterval(G.timer);
   G.full = t; G.typing = true;
-  const el = $("g-text"); el.textContent = "";
-  let k = 0;
+  const el = $("g-text"); el.textContent = t.slice(0, 1);      // first letter lands immediately, so the bubble is never blank
+  let k = 1;
   G.timer = setInterval(() => {
     k++; el.textContent = t.slice(0, k);
     if (k >= t.length) { clearInterval(G.timer); G.typing = false; lineDone(); }
@@ -534,11 +680,15 @@ function renderPick(dir) {
   if (dir) { box.classList.remove("sl", "sr"); void box.offsetWidth; box.classList.add(dir); }
   $("pick-name").textContent = DESIGNS[ob.i].name;
   $("pick-line").textContent = DESIGNS[ob.i].line;
-  $("pick-dots").innerHTML = DESIGNS.map((_, k) => `<i class="${k === ob.i ? "on" : ""}"></i>`).join("");
-  $("swatches").innerHTML = ACCENTS.map((a, k) => `<button class="sw ${k === ob.acc ? "sel" : ""}" data-k="${k}" style="background:${a.hex}" aria-label="${a.name}"></button>`).join("");
+  $("pick-dots").innerHTML = FREE_DESIGNS.map((k) => `<i class="${k === ob.i ? "on" : ""}"></i>`).join("");
+  $("swatches").innerHTML = FREE_ACCENTS.map((k) => `<button class="sw ${k === ob.acc ? "sel" : ""}" data-k="${k}" style="background:${ACCENTS[k].hex}" aria-label="${ACCENTS[k].name}"></button>`).join("");
   $("swatches").querySelectorAll(".sw").forEach((b) => { b.onclick = () => { ob.acc = +b.dataset.k; renderPick(); }; });
 }
-function stepPick(n) { ob.i = (ob.i + n + DESIGNS.length) % DESIGNS.length; renderPick(n > 0 ? "sr" : "sl"); }
+function stepPick(n) {
+  const pos = FREE_DESIGNS.indexOf(ob.i);
+  ob.i = FREE_DESIGNS[(pos + n + FREE_DESIGNS.length) % FREE_DESIGNS.length];
+  renderPick(n > 0 ? "sr" : "sl");
+}
 $("pick-prev").onclick = () => stepPick(-1);
 $("pick-next").onclick = () => stepPick(1);
 addEventListener("keydown", (e) => {
