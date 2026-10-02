@@ -6,5 +6,9 @@ const STORE = {
   prices: { report: "$7.99", pack: "$4.99", design: "$2.99", accents: "$0.99" }
 };
 
+// Feedback: paste the link to a free form here (Google Forms, Tally, Typeform...).
+// While this is empty the feedback buttons stay hidden, so nobody is shown a button that goes nowhere.
+const FEEDBACK_URL = "";
+
 // Developer mode: open the site with ?dev=1 to unlock things locally for testing. Never use this to charge anyone.
 const DEV = (function () { try { return new URLSearchParams(location.search).has("dev"); } catch (e) { return false; } })();

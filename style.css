@@ -253,6 +253,47 @@ input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; 
 .drop span { color: var(--muted); font-size: .85rem; }
 .modal-card .btn { margin-top: 10px; }
 
+/* ---------- streaks, fire ---------- */
+.hdr-right { display: flex; align-items: center; gap: 8px; }
+.streak-chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 99px; background: var(--card); border: 1px solid var(--line); font-weight: 600; font-size: .9rem; color: #ff9a3c; }
+.streak-chip svg { width: 14px; height: 16px; }
+.streak-chip.t2 { color: #ff7a2f; } .streak-chip.t3 { color: #ff5a2a; } .streak-chip.t4 { color: #6fb8ff; } .streak-chip.t5 { color: #ffd76a; }
+.streak-chip.pop { animation: pulse 1s; }
+@keyframes pulse { 35% { transform: scale(1.18); } }
+.flame { transform-box: fill-box; transform-origin: 50% 100%; animation: flick 1.3s ease-in-out infinite; }
+@keyframes flick {
+  0%, 100% { transform: scale(1, 1) skewX(0deg); opacity: .95; }
+  30% { transform: scale(.9, 1.14) skewX(4deg); opacity: 1; }
+  60% { transform: scale(1.07, .9) skewX(-4deg); opacity: .9; }
+}
+.gear.tier-legendary { filter: drop-shadow(0 0 6px rgba(255, 215, 106, .95)); }
+.tile.tier-legendary { border-top: 3px solid #ffd76a; }
+.streak-card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; margin: 14px 0; }
+.streak-top { display: flex; align-items: baseline; gap: 10px; }
+.streak-top b { font-size: 2.2rem; font-weight: 600; color: #ff9a3c; line-height: 1; }
+.streak-top span { color: var(--muted); }
+.streak-card .xp > div { background: #ff9a3c; }
+.miles { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.mile { font-size: .78rem; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.mile.got { color: #ff9a3c; border-color: #ff9a3c; }
+
+.tests { color: var(--muted); font-size: .88rem; line-height: 1.45; margin: 0 0 14px; }
+.card .tests { margin-top: -4px; }
+
+/* ---------- install, privacy, feedback ---------- */
+.install { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; margin-top: 14px; }
+.install b { font-weight: 500; display: block; }
+.install small { color: var(--muted); font-size: .82rem; line-height: 1.4; display: block; margin-top: 2px; }
+.install .btn { width: auto; flex: 0 0 auto; padding: 10px 16px; }
+.install .x { background: none; border: 0; color: var(--muted); font-size: 1.3rem; cursor: pointer; padding: 4px 8px; }
+.g-priv { margin: 16px 0 0; color: var(--muted); font-size: .85rem; }
+.g-priv a { color: var(--text); }
+.modal-card .priv h3 { font-size: 1.2rem; font-weight: 500; margin: 0 0 10px; }
+.modal-card .priv ul { margin: 0 0 6px; padding-left: 18px; color: var(--muted); line-height: 1.5; font-size: .95rem; }
+.modal-card .priv li { margin-bottom: 8px; }
+.modal-card .priv b { color: var(--text); font-weight: 500; }
+.btn.ghost { background: none; box-shadow: none; }
+
 /* ---------- shop, report, appearance ---------- */
 .shop-card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; margin: 12px 0; }
 .shop-card b { font-size: 1.1rem; font-weight: 500; }

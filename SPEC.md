@@ -25,6 +25,21 @@ Drifter 0 · Wanderer 150 · Seeker 400 · Explorer 800 · Pathfinder 1,400 · T
 - It fills with layers of colour, one per quest, in the colour of the field. The colours blend into a personal gradient.
 - **Gear:** 8 items (headband, cap, headphones, glasses, visor, scar, scarf, medal) x 3 rarities (common, rare, epic) = 24 items. Each quest drops one. Equip in the Locker (slots: head, eyes, body).
 
+## Streaks
+- Open Void on consecutive days to build a streak. The header shows a flame and the count.
+- Void burns brighter as the streak grows: embers (3 days), flame (7), blaze (30), blue fire (100), golden fire (365).
+- Milestones: 7 days (+100 XP, rare item), 30 days (+300 XP, epic item), 100 days (+1,000 XP, legendary Halo), 365 days (+3,000 XP, legendary Crown).
+- Free shields: every 7th day earns one (max 2), and a shield covers one missed day. No purchases, no guilt: a broken streak just restarts.
+
+## Quests are job samples
+Every quest is a small, real version of the work in a career, and shows "Careers this tests". The Direction Report turns the quests that gave you energy, flow or pull into a list of careers worth researching.
+
+## Privacy
+No accounts, no tracking, no analytics. Data is stored only in the browser on the user's device. Honest note in the app: the site is hosted on GitHub Pages and the font loads from Google Fonts. A feedback form link (`FEEDBACK_URL` in `store.js`) is optional; the feedback buttons stay hidden until it is set.
+
+## Install
+Web app manifest, icons and a service worker so Void can be added to the home screen and opens offline. iPhones show a "Share, then Add to Home Screen" hint after the first quest.
+
 ## Shop and monetization (see docs/BUSINESS.md)
 - The core loop is free. People pay for depth and identity.
 - **Quest packs:** The Builder Path, Hands & Trades, Creative Paths (8 quests each, 24 total).

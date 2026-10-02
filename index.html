@@ -6,6 +6,11 @@
 <meta name="theme-color" content="#16121f">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Void">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Void helps you find what you want to do with your life by testing it in real life.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>Void</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +21,10 @@
 <div id="app">
   <header>
     <h1 class="logo">void</h1>
-    <div id="level" class="pill"></div>
+    <div class="hdr-right">
+      <div id="streak-chip" class="streak-chip" hidden></div>
+      <div id="level" class="pill"></div>
+    </div>
   </header>
 
   <!-- ===== SETUP ===== -->
@@ -30,6 +38,7 @@
       <div class="g-age" id="g-age" hidden>
         <button class="btn primary" id="age-yes">I'm 18 or older</button>
         <button class="btn" id="age-no">I'm under 18</button>
+        <p class="g-priv">Your data stays on this device. <a href="#" id="priv-link">Privacy</a></p>
       </div>
       <button class="link" id="g-back" hidden>Start over</button>
     </div>
@@ -74,7 +83,7 @@
           <linearGradient id="liqgrad" x1="0" y1="0" x2="0" y2="1"></linearGradient>
         </defs>
         <ellipse class="ground" cx="120" cy="226" rx="72" ry="8"/>
-        <g id="idle"><g id="squish">
+        <g id="idle"><g id="fire"></g><g id="squish">
           <path class="hollow" d=""/>
           <g clip-path="url(#clip)">
             <g id="liquid">
@@ -174,7 +183,7 @@
   <footer>
     Void is for exploring, not treatment. If the emptiness feels heavy or won't lift,
     you deserve real support: <a href="https://findahelpline.com" target="_blank" rel="noopener">find a helpline here</a>.
-    <br><a href="#" id="reset">Reset everything</a>
+    <br><a href="#" id="foot-priv">Privacy</a> · <a href="#" id="foot-feedback" hidden>Feedback</a><span id="foot-sep" hidden> · </span><a href="#" id="reset">Reset everything</a>
   </footer>
 </div>
 

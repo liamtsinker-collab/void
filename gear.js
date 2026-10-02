@@ -79,16 +79,22 @@ const GEAR_SHAPES = {
   visor:      { slot: "eyes", label: "Visor" },
   scar:       { slot: "eyes", label: "Scar" },
   scarf:      { slot: "body", label: "Scarf" },
-  medal:      { slot: "body", label: "Medal" }
+  medal:      { slot: "body", label: "Medal" },
+  // streak rewards only (never drop from quests)
+  halo:       { slot: "head", label: "Halo" },
+  crown:      { slot: "head", label: "Crown" }
 };
 const GEAR_TIERS = {
-  common: { label: "Common", color: "#9aa3b2" },
-  rare:   { label: "Rare",   color: "#6fa8d6" },
-  epic:   { label: "Epic",   color: "#d9b96a" }
+  common:    { label: "Common",    color: "#9aa3b2" },
+  rare:      { label: "Rare",      color: "#6fa8d6" },
+  epic:      { label: "Epic",      color: "#d9b96a" },
+  legendary: { label: "Legendary", color: "#ffd76a" }
 };
 const SLOTS = [["head", "Head"], ["eyes", "Eyes"], ["body", "Body"]];
-const GEAR_ITEMS = [];
-Object.keys(GEAR_SHAPES).forEach((s) => Object.keys(GEAR_TIERS).forEach((t) => GEAR_ITEMS.push(s + ":" + t)));
+const REGULAR_SHAPES = ["headband", "cap", "headphones", "glasses", "visor", "scar", "scarf", "medal"];
+const GEAR_ITEMS = [];                                        // everything a quest can drop
+REGULAR_SHAPES.forEach((s) => ["common", "rare", "epic"].forEach((t) => GEAR_ITEMS.push(s + ":" + t)));
+const STREAK_ITEMS = ["halo:legendary", "crown:legendary"];   // earned by 100 and 365 day streaks
 
 function gearInfo(id) {
   const [shape, tier] = id.split(":");
@@ -136,6 +142,12 @@ function gearSVG(id, d) {
       return S(`<path d="M${a.neckL} ${a.neckY} Q${cx} ${a.neckY + 16} ${a.neckR} ${a.neckY}" fill="none" stroke="${col}" stroke-width="15" stroke-linecap="round"/>
         <path d="M${cx + 22} ${a.neckY + 8} L${cx + 30} ${a.neckY + 36}" stroke="${col}" stroke-width="12" stroke-linecap="round"/>
         <path d="M${a.neckL + 8} ${a.neckY + 2} Q${cx} ${a.neckY + 16} ${a.neckR - 8} ${a.neckY + 2}" fill="none" stroke="${dark}" stroke-width="2"/>`);
+    case "halo":
+      return S(`<ellipse cx="${cx}" cy="${a.top - 16}" rx="36" ry="9" fill="none" stroke="${col}" stroke-width="4.5"/>
+        <ellipse cx="${cx}" cy="${a.top - 16}" rx="36" ry="9" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.5"/>`);
+    case "crown":
+      return S(`<path d="M${cx - 28} ${a.top + 2} L${cx - 28} ${a.top - 26} L${cx - 14} ${a.top - 12} L${cx} ${a.top - 32} L${cx + 14} ${a.top - 12} L${cx + 28} ${a.top - 26} L${cx + 28} ${a.top + 2} Z" fill="${col}" stroke="${dark}" stroke-width="2.5" stroke-linejoin="round"/>
+        <circle cx="${cx}" cy="${a.top - 8}" r="3.5" fill="${dark}"/>`);
     case "medal":
       return S(`<path d="M${a.neckL + 22} ${a.neckY - 4} L${cx} ${a.neckY + 22} L${a.neckR - 22} ${a.neckY - 4}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round"/>
         <circle cx="${cx}" cy="${a.neckY + 28}" r="9" fill="${col}" stroke="${dark}" stroke-width="2.5"/>
@@ -166,6 +178,33 @@ function miniVoid(di, accent, items = [], lid = 1) {
     ${eyes}
     ${items.map((i) => gearSVG(i, d)).join("")}
   </svg>`;
+}
+
+// ---------- streak fire ----------
+// The longer your streak, the bigger and hotter Void burns. Tier 0 = no fire.
+const FIRE_STYLES = [
+  null,
+  { a: "#ff9a3c", b: "#ffd27a", n: 3, s: 0.8 },    // 3-6 days: embers
+  { a: "#ff7a2f", b: "#ffd23c", n: 5, s: 1.0 },    // 7-29 days: flame
+  { a: "#ff5a2a", b: "#ffe066", n: 7, s: 1.25 },   // 30-99 days: blaze
+  { a: "#4aa8ff", b: "#e1f2ff", n: 7, s: 1.4 },    // 100-364 days: blue fire
+  { a: "#e0a93a", b: "#fff2b0", n: 9, s: 1.5 }     // 365+ days: golden fire
+];
+function fireTier(days) { return days >= 365 ? 5 : days >= 100 ? 4 : days >= 30 ? 3 : days >= 7 ? 2 : days >= 3 ? 1 : 0; }
+function fireSVG(d, tier) {
+  const f = FIRE_STYLES[tier];
+  if (!f) return "";
+  const top = d.a.top, half = Math.min(46, (d.a.bandR - d.a.bandL) / 2 - 4);
+  let out = "";
+  for (let i = 0; i < f.n; i++) {
+    const t = f.n === 1 ? 0 : (i / (f.n - 1)) * 2 - 1;
+    const x = 120 + t * half, y = top + t * t * 16 + 10;
+    const h = (30 + (1 - Math.abs(t)) * 30) * f.s * (0.82 + (i % 3) * 0.12), w = 11 * f.s;
+    const path = (k) => `M0 0C${(w * k).toFixed(1)} ${(-h * k * 0.28).toFixed(1)} ${(w * 0.9 * k).toFixed(1)} ${(-h * k * 0.7).toFixed(1)} 0 ${(-h * k).toFixed(1)}C${(-w * 0.9 * k).toFixed(1)} ${(-h * k * 0.7).toFixed(1)} ${(-w * k).toFixed(1)} ${(-h * k * 0.28).toFixed(1)} 0 0Z`;
+    const st = `animation-delay:${(-i * 0.37).toFixed(2)}s;animation-duration:${(1.05 + (i % 4) * 0.17).toFixed(2)}s`;
+    out += `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><path class="flame" style="${st}" d="${path(1)}" fill="${f.a}"/><path class="flame" style="${st}" d="${path(0.55)}" fill="${f.b}"/></g>`;
+  }
+  return out;
 }
 
 // Rank emblem: one chevron per rank.

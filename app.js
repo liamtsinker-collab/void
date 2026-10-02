@@ -8,13 +8,16 @@ function fresh() {
   return {
     profile: null, done: [], quest: null,
     gear: { owned: [], equipped: { head: null, eyes: null, body: null } },
-    ent: { report: false, packs: [], designs: [], accents: false }     // what the user has unlocked in the Shop
+    ent: { report: false, packs: [], designs: [], accents: false },    // what the user has unlocked in the Shop
+    streak: { count: 0, best: 0, last: null, shields: 0, claimed: [] }, // daily check-in streak
+    bonusXp: 0,                                                         // XP from streak milestones
+    installDismissed: false
   };
 }
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s && Array.isArray(s.done)) return { ...fresh(), ...s, gear: { ...fresh().gear, ...(s.gear || {}) }, ent: { ...fresh().ent, ...(s.ent || {}) } };
+    if (s && Array.isArray(s.done)) return { ...fresh(), ...s, gear: { ...fresh().gear, ...(s.gear || {}) }, ent: { ...fresh().ent, ...(s.ent || {}) }, streak: { ...fresh().streak, ...(s.streak || {}) } };
   } catch {}
   return fresh();
 }
@@ -62,7 +65,7 @@ document.querySelectorAll(".tab").forEach((t) => {
 
 // ---------- progress: XP, rank, campaign ----------
 const GOAL = 30;                                  // quests it takes to fill Void completely
-const totalXp = () => state.done.reduce((s, d) => s + (d.xp || 0), 0);
+const totalXp = () => state.done.reduce((s, d) => s + (d.xp || 0), 0) + (state.bonusXp || 0);
 function rankIdx(xp = totalXp()) { let i = 0; RANKS.forEach((r, k) => { if (xp >= r.xp) i = k; }); return i; }
 function rankProgress(xp = totalXp()) {
   const i = rankIdx(xp), cur = RANKS[i], next = RANKS[i + 1];
@@ -122,6 +125,96 @@ function rollGear(tier) {
   return c.length ? sample(c) : null;
 }
 
+// ---------- daily streak ----------
+// Open Void on consecutive days to build a streak. Free "shields" (earned every 7th day, max 2) cover one missed day.
+// No purchases, no guilt: if it breaks, you just start again.
+const STREAK_MILESTONES = [
+  { days: 7,   title: "One week",  xp: 100,  gear: "rare" },
+  { days: 30,  title: "One month", xp: 300,  gear: "epic" },
+  { days: 100, title: "100 days",  xp: 1000, special: "halo:legendary" },
+  { days: 365, title: "One year",  xp: 3000, special: "crown:legendary" }
+];
+function localDate(d = new Date()) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function daysBetween(a, b) {
+  const p = (s) => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.round((p(b) - p(a)) / 864e5);
+}
+// Returns null if nothing changed today, otherwise { note, rewards }.
+function checkIn(today = localDate()) {
+  const s = state.streak;
+  if (s.last === today) return null;
+  let note = null;
+  if (!s.last) s.count = 1;
+  else {
+    const gap = daysBetween(s.last, today);
+    if (gap <= 0) return null;                                   // clock went backwards: ignore
+    if (gap === 1) s.count += 1;
+    else if (gap === 2 && s.shields > 0) { s.shields -= 1; s.count += 1; note = "shield"; }
+    else { note = s.count >= 3 ? "broken:" + s.count : null; s.count = 1; }
+  }
+  s.last = today;
+  s.best = Math.max(s.best, s.count);
+  if (s.count % 7 === 0) s.shields = Math.min(2, s.shields + 1);
+  const rewards = [];
+  STREAK_MILESTONES.forEach((m) => {
+    if (s.count >= m.days && !s.claimed.includes(m.days)) { s.claimed.push(m.days); rewards.push(m); }
+  });
+  save();
+  return { note, rewards };
+}
+// Grants a milestone's rewards and returns what to show.
+function grantMilestone(m) {
+  state.bonusXp += m.xp;
+  let drop = m.special || (m.gear ? rollGear(m.gear) : null), equipped = false;
+  if (drop) {
+    if (!state.gear.owned.includes(drop)) state.gear.owned.push(drop);
+    const slot = gearInfo(drop).slot;
+    if (!state.gear.equipped[slot]) { state.gear.equipped[slot] = drop; equipped = true; }
+  }
+  save();
+  return { m, drop, equipped };
+}
+function streakModalHTML(grants, prevXp) {
+  const g = grants[0], newXp = totalXp();
+  const pr = rankIdx(prevXp), nr = rankIdx(newXp);
+  let h = `<div class="m-tag">Streak milestone</div><h2>${g.m.title}</h2><div class="m-xp">${g.m.days} days</div>
+    <p class="sub">+${g.m.xp} XP${state.streak.count % 7 === 0 ? " · +1 streak shield" : ""}</p>`;
+  if (nr > pr) h += `<div class="rankup">${rankEmblem(nr, 44)}<div><small>Rank up</small><b>${RANKS[nr].name}</b></div></div>`;
+  if (g.drop) {
+    const i = gearInfo(g.drop);
+    h += `<div class="drop tier-${i.tier}">${miniVoid(state.profile.design, accent(), [g.drop], LID[rankIdx()])}
+      <div><small>${GEAR_TIERS[i.tier].label} reward</small><b>${i.label}</b><span>${g.equipped ? "Equipped" : "Slot: " + i.slot}</span></div></div>`;
+    if (!g.equipped) h += `<button class="btn" id="m-equip">Equip it</button>`;
+  }
+  h += `<button class="btn primary" id="m-close">Keep going</button>`;
+  setTimeout(() => {
+    const eq = $("m-equip");
+    if (eq) eq.onclick = () => { state.gear.equipped[gearInfo(g.drop).slot] = g.drop; save(); renderVoid(); eq.textContent = "Equipped"; eq.disabled = true; };
+    $("m-close").onclick = () => { closeModal(); say(`${state.streak.count} days in a row. That's discipline.`); };
+  }, 30);
+  return h;
+}
+function runCheckIn() {
+  const prevXp = totalXp(), r = checkIn();
+  if (!r) return;
+  renderVoid();
+  if (r.rewards.length) {
+    const grants = r.rewards.map(grantMilestone);
+    renderVoid();
+    setTimeout(() => openModal(streakModalHTML(grants, prevXp)), 900);
+  } else if (r.note === "shield") {
+    say("You missed a day, but a shield covered it. Streak: " + state.streak.count + ".");
+  } else if (r.note && r.note.startsWith("broken:")) {
+    say(`Your ${r.note.split(":")[1]}-day streak ended. No big deal. We start again today. Best so far: ${state.streak.best}.`);
+  } else if (state.streak.count === 3) {
+    say("Three days in a row. I can feel something igniting.");
+  } else if (state.streak.count > 1) {
+    say(`Day ${state.streak.count}. Good to see you again.`);
+  }
+}
+
 // ---------- Void the character ----------
 const design = () => DESIGNS[state.profile.design];
 const accent = () => ACCENTS[state.profile.accent].hex;
@@ -173,11 +266,27 @@ function renderVoid() {
 
   $("gear").innerHTML = equippedItems().map((i) => gearSVG(i, design())).join("");
 
-  const stage = document.querySelector(".stage");
-  stage.style.setProperty("--glow-o", (0.16 + f * 0.36).toFixed(2));
-  stage.style.setProperty("--glow", len ? topDown[0] : accent());
+  // streak fire: flames on top, a hot rim and a warmer glow
+  const ft = fireTier(state.streak.count), fs = FIRE_STYLES[ft];
+  $("fire").innerHTML = fireSVG(design(), ft);
+  if (fs) document.querySelector(".outline").style.filter = `drop-shadow(0 0 ${6 + ft * 3}px ${fs.a}cc)`;
 
+  const stage = document.querySelector(".stage");
+  stage.style.setProperty("--glow-o", (0.16 + f * 0.36 + ft * 0.05).toFixed(2));
+  stage.style.setProperty("--glow", fs ? fs.a : len ? topDown[0] : accent());
+
+  renderStreakChip();
   renderPlate();
+}
+
+function renderStreakChip() {
+  const c = $("streak-chip"), n = state.streak.count, t = fireTier(n);
+  if (n < 1) { c.hidden = true; return; }
+  const col = FIRE_STYLES[t] ? FIRE_STYLES[t].a : "#ff9a3c";
+  c.hidden = false;
+  c.className = "streak-chip t" + t;
+  c.innerHTML = `<svg viewBox="0 0 20 24" aria-hidden="true"><path d="M10 1C11 6 18 9 18 15.5 18 20 14.5 23 10 23S2 20 2 15.5C2 12 4.5 10.5 5.5 8 6 10 7.5 10.5 8.5 10 8 7 8.5 4 10 1Z" fill="${t ? col : "#ff9a3c"}"/></svg>${n}`;
+  c.title = `${n}-day streak · best ${state.streak.best}`;
 }
 
 function renderPlate() {
@@ -256,11 +365,12 @@ function renderHome(quiet) {
   const q = state.quest && getQuest(state.quest.id);
   if (q) {
     const c = CATEGORIES[q.cat];
-    box.innerHTML = campaignHTML() + `
+    box.innerHTML = campaignHTML() + installHTML() + `
       <div class="card quest" style="--c:${c.color}">
         <span class="tag">Active quest</span>
         ${questTags(q)}
         <h3></h3><p></p>
+        ${q.tests ? `<p class="tests"></p>` : ""}
         <span class="chip">${q.time}</span> <span class="chip">+${TIERS[q.tier].xp} XP</span>
       </div>
       <div class="stack">
@@ -269,13 +379,15 @@ function renderHome(quiet) {
       </div>`;
     box.querySelector("h3").textContent = q.title;
     box.querySelector("p").textContent = q.desc;
+    const tl = box.querySelector(".tests"); if (tl) tl.textContent = "Careers this tests: " + q.tests;
     $("done").onclick = () => { pending = q; openReflect(); };
     $("giveup").onclick = () => { pending = q; state.quest = null; save(); pending = pickQuest(); showQuest(); };
   } else {
     state.quest = null;
-    box.innerHTML = campaignHTML() + `<div class="stack"><button class="btn primary" id="take">Take a quest</button></div>`;
+    box.innerHTML = campaignHTML() + installHTML() + `<div class="stack"><button class="btn primary" id="take">Take a quest</button></div>`;
     $("take").onclick = scan;
   }
+  bindInstall();
   if (!quiet) say(homeLine());
 }
 
@@ -292,10 +404,12 @@ function showQuest() {
   card.style.setProperty("--c", c.color);
   card.innerHTML = `${questTags(q)}<h2></h2><p class="desc"></p>
     <div class="why"><b>Why this quest</b><p></p></div>
+    ${q.tests ? `<p class="tests"></p>` : ""}
     <div class="meta"><span class="chip">${q.time}</span><span class="chip">+${TIERS[q.tier].xp} XP</span><span class="chip">${GEAR_TIERS[TIERS[q.tier].gear].label} gear drop</span></div>`;
   card.querySelector("h2").textContent = q.title;
   card.querySelector(".desc").textContent = q.desc;
   card.querySelector(".why p").textContent = q.why;
+  const tl = card.querySelector(".tests"); if (tl) tl.textContent = "Careers this tests: " + q.tests;
   card.style.animation = "none"; void card.offsetWidth; card.style.animation = "";
   show("exp");
 }
@@ -394,7 +508,9 @@ function completionHTML(r) {
     if (!r.equipped) h += `<button class="btn" id="m-equip">Equip it</button>`;
   }
   h += `<button class="btn primary" id="m-close">Continue</button>`;
+  if (feedbackOn()) h += `<button class="btn ghost" id="m-feedback">Give feedback on this quest</button>`;
   setTimeout(() => {
+    const fb = $("m-feedback"); if (fb) fb.onclick = openFeedback;
     const f = $("m-fill"); if (f) f.style.width = f.dataset.to + "%";
     const eq = $("m-equip");
     if (eq) eq.onclick = () => { state.gear.equipped[gearInfo(r.drop).slot] = r.drop; save(); renderVoid(); eq.textContent = "Equipped"; eq.disabled = true; };
@@ -448,7 +564,7 @@ function reportCardHTML() {
 function renderLocker() {
   const owned = new Set(state.gear.owned), eq = state.gear.equipped, lid = LID[rankIdx()];
   let html = `<div class="locker-prev">${miniVoid(state.profile.design, accent(), equippedItems(), lid)}</div>
-    <p class="sub center">${owned.size} of ${GEAR_ITEMS.length} items found. Every quest drops one.</p><div class="slots">`;
+    <p class="sub center">${GEAR_ITEMS.filter((i) => owned.has(i)).length} of ${GEAR_ITEMS.length} items found. Every quest drops one.</p><div class="slots">`;
   SLOTS.forEach(([s, label]) => {
     html += `<div class="slot"><small>${label}</small><b>${eq[s] ? gearInfo(eq[s]).label : "Empty"}</b></div>`;
   });
@@ -459,6 +575,15 @@ function renderLocker() {
       html += `<button class="tile tier-${g.tier} ${eq[g.slot] === id ? "on" : ""}" data-item="${id}">${miniVoid(state.profile.design, accent(), [id], lid)}<small>${g.label}</small></button>`;
     } else {
       html += `<div class="tile locked"><span>?</span><small>${GEAR_TIERS[g.tier].label}</small></div>`;
+    }
+  });
+  html += `</div><h3 class="log-title">Streak rewards</h3><div class="grid">`;
+  STREAK_ITEMS.forEach((id) => {
+    const g = gearInfo(id), days = STREAK_MILESTONES.find((m) => m.special === id).days;
+    if (owned.has(id)) {
+      html += `<button class="tile tier-legendary ${eq[g.slot] === id ? "on" : ""}" data-item="${id}">${miniVoid(state.profile.design, accent(), [id], lid)}<small>${g.label}</small></button>`;
+    } else {
+      html += `<div class="tile locked"><span>?</span><small>${days}-day streak</small></div>`;
     }
   });
   html += `</div>`;
@@ -573,8 +698,20 @@ function renderReport() {
     : `<p>Nothing has drained you consistently yet.</p>`);
 
   const t2 = rows.slice(0, 2).map((r) => r.k);
-  html += sec("Paths people with this pattern explore", t2.map((k) => `<p>${colour(k)}: ${FIELD_PATHS[k]}.</p>`).join("") +
-    `<p class="small">These are starting points to research, not recommendations.</p>`);
+  // careers worth researching: weighted by the quests that gave you energy, flow or pull
+  const tally = {};
+  state.done.forEach((d) => {
+    const q = getQuest(d.id);
+    if (!q || !q.tests || /^any career/.test(q.tests)) return;
+    const w = (d.flow ? 2 : 0) + (d.verdict === "more" ? 2 : d.verdict === "never" ? -2 : 0) + (d.after > d.before ? 1 : 0);
+    if (w <= 0) return;
+    q.tests.split(",").map((s) => s.trim()).filter((s) => s && !/^any /.test(s)).forEach((c) => { tally[c] = (tally[c] || 0) + w; });
+  });
+  const careers = Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, 8).map((e) => e[0]);
+  html += sec("Careers worth researching", (careers.length
+    ? `<p>These came up in the quests that gave you energy, flow or pull:</p><p><b>${careers.map(esc).join(" · ")}</b></p>`
+    : t2.map((k) => `<p>${colour(k)}: ${FIELD_PATHS[k]}.</p>`).join("")) +
+    `<p class="small">Starting points to research, not recommendations. Try the matching quests next, then talk to someone in the job.</p>`);
 
   const doneIds = state.done.map((d) => d.id);
   const avail = QUESTS.filter((q) => !doneIds.includes(q.id) && hasPack(q.pack) && tierUnlocked(q.tier));
@@ -590,12 +727,80 @@ function renderReport() {
 }
 $("report-back").onclick = () => { renderMap(); show("map"); };
 
+// ---------- streak card (on the Rank screen) ----------
+function rewardPhrase(m) {
+  const w = m.special ? "legendary " + gearInfo(m.special).label.replace("Legendary ", "") : GEAR_TIERS[m.gear].label.toLowerCase() + " item";
+  return (/^[aeiou]/i.test(w) ? "an " : "a ") + w;
+}
+function streakCardHTML() {
+  const s = state.streak, n = s.count;
+  const next = STREAK_MILESTONES.find((m) => n < m.days);
+  const prevDays = [...STREAK_MILESTONES].reverse().find((m) => n >= m.days);
+  const from = prevDays ? prevDays.days : 0;
+  const pct = next ? Math.round(((n - from) / (next.days - from)) * 100) : 100;
+  const miles = STREAK_MILESTONES.map((m) => `<span class="mile ${s.claimed.includes(m.days) ? "got" : ""}">${m.days} days</span>`).join("");
+  return `<div class="streak-card"><div class="streak-top"><b>${n}</b><span>day streak · best ${s.best}${s.shields ? ` · ${s.shields} shield${s.shields > 1 ? "s" : ""}` : ""}</span></div>
+    <div class="xp" style="margin-top:10px"><div style="width:${pct}%"></div></div>
+    <div class="xp-meta"><span>${next ? `${next.days - n} day${next.days - n === 1 ? "" : "s"} to ${next.title.toLowerCase()}: +${next.xp} XP and ${rewardPhrase(next)}` : "Every milestone reached"}</span><span></span></div>
+    <div class="miles">${miles}</div>
+    <p class="sub" style="margin-top:10px;font-size:.85rem">Open Void on consecutive days to keep it going. Every 7th day earns a shield that covers one missed day.</p></div>`;
+}
+
+// ---------- privacy + feedback ----------
+function openPrivacy() {
+  openModal(`<div class="priv"><h3>Your data stays on your device</h3><ul>
+    <li><b>No accounts.</b> Your name, quests, notes, rank and gear are saved only in this browser, on this device.</li>
+    <li><b>Nothing is sent to us or anyone else.</b> There is no tracking and no analytics.</li>
+    <li>Void's website is hosted on GitHub Pages, and the font loads from Google Fonts. Like any website, those services can see standard visit details such as your IP address. Void itself doesn't collect or use them.</li>
+    <li>The helpline link${FEEDBACK_URL ? " and the feedback form" : ""} open other websites with their own policies.${FEEDBACK_URL ? " If you send feedback, it contains only what you type." : ""}</li>
+    <li>If you clear your browser data your progress is deleted. You can also erase everything yourself with "Reset everything".</li>
+    <li>Void is for people 18 and over. It isn't therapy or medical advice.</li></ul>
+    <button class="btn primary" id="m-close">Got it</button></div>`);
+  setTimeout(() => { $("m-close").onclick = closeModal; }, 30);
+}
+const feedbackOn = () => !!FEEDBACK_URL || DEV;
+function openFeedback() {
+  if (!FEEDBACK_URL) { toast("Feedback form isn't connected yet (dev mode)."); return; }
+  window.open(FEEDBACK_URL, "_blank", "noopener");
+}
+$("foot-priv").onclick = (e) => { e.preventDefault(); openPrivacy(); };
+$("priv-link").onclick = (e) => { e.preventDefault(); e.stopPropagation(); openPrivacy(); };
+(function feedbackFooter() {
+  const fb = $("foot-feedback");
+  if (!feedbackOn()) return;
+  fb.hidden = false; $("foot-sep").hidden = false;
+  fb.onclick = (e) => { e.preventDefault(); openFeedback(); };
+})();
+
+// ---------- install (add to home screen) ----------
+let deferredInstall = null;
+addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferredInstall = e; if (state.profile) renderHome(true); });
+addEventListener("appinstalled", () => { deferredInstall = null; state.installDismissed = true; save(); if (state.profile) renderHome(true); });
+const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function installHTML() {
+  if (isStandalone() || state.installDismissed || state.done.length < 1) return "";
+  if (deferredInstall) {
+    return `<div class="install"><div><b>Add Void to your home screen</b><small>Opens like a real app, no browser bars.</small></div><button class="btn" id="do-install">Install</button><button class="x" id="no-install" aria-label="Dismiss">×</button></div>`;
+  }
+  if (isIOS()) {
+    return `<div class="install"><div><b>Add Void to your home screen</b><small>Tap the Share button, then "Add to Home Screen".</small></div><button class="x" id="no-install" aria-label="Dismiss">×</button></div>`;
+  }
+  return "";
+}
+function bindInstall() {
+  const yes = $("do-install"), no = $("no-install");
+  if (yes) yes.onclick = async () => { deferredInstall.prompt(); try { await deferredInstall.userChoice; } catch {} deferredInstall = null; renderHome(true); };
+  if (no) no.onclick = () => { state.installDismissed = true; save(); renderHome(true); };
+}
+
 // ---------- rank ----------
 function renderRank() {
   const rp = rankProgress(), xp = totalXp();
   let html = `<div class="rank-hero">${rankEmblem(rp.i, 72)}<div><small>Current rank</small><b>${RANKS[rp.i].name}</b><span>${xp} XP</span></div></div>
     <div class="xp big"><div style="width:${Math.round(rp.pct * 100)}%"></div></div>
     <div class="xp-meta"><span>${rp.max ? "Max rank" : `${rp.into} / ${rp.need} XP to ${rp.next}`}</span><span></span></div>
+    ${streakCardHTML()}
     <div class="ladder">`;
   RANKS.forEach((r, i) => {
     html += `<div class="rung ${i === rp.i ? "cur" : i < rp.i ? "done" : "locked"}">${rankEmblem(i, 28)}<b>${r.name}</b><span>${r.xp} XP</span></div>`;
@@ -730,7 +935,7 @@ function enterApp(first) {
   $("liquid").style.transform = "translateY(236px)";
   renderHome();
   show("home");
-  setTimeout(renderVoid, first ? 200 : 350);
+  setTimeout(() => { renderVoid(); runCheckIn(); }, first ? 200 : 350);
 }
 
 $("reset").onclick = (e) => {
@@ -747,6 +952,12 @@ $("reset").onclick = (e) => {
 
 // ---------- boot ----------
 $("modal").addEventListener("click", (e) => { if (e.target === $("modal") && $("m-close")) $("m-close").click(); });
+// if the app stays open past midnight, count the new day when you come back to it
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && state.profile && state.streak.last && state.streak.last !== localDate()) runCheckIn();
+});
+// lets Void install like an app and open without a connection
+if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) navigator.serviceWorker.register("sw.js").catch(() => {});
 if (state.profile) {
   if (state.quest && !getQuest(state.quest.id)) state.quest = null;
   enterApp(false);
