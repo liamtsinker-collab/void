@@ -25,6 +25,13 @@ Drifter 0 · Wanderer 150 · Seeker 400 · Explorer 800 · Pathfinder 1,400 · T
 - It fills with layers of colour, one per quest, in the colour of the field. The colours blend into a personal gradient.
 - **Gear:** 8 items (headband, cap, headphones, glasses, visor, scar, scarf, medal) x 3 rarities (common, rare, epic) = 24 items. Each quest drops one. Equip in the Locker (slots: head, eyes, body).
 
+## Personal Void (names, voice, memory, expression, evolution)
+- **Your name:** asked in setup right after the age check. Void uses it in messages ("Let's go, Liam"). Older profiles are asked once.
+- **Personality:** chosen at setup and changeable in the Locker: Calm, Dry, or Tough love. Each has its own lines for every moment (see `voice.js`, 116 lines across 31 moments).
+- **Memory:** Void refers to what you've actually done: your flow moments, strongest field, biggest energy jump, what drains you, and recurring careers.
+- **Expression:** eyes widen when excited, squint when he's missed you or after a broken streak, and droop at night. Poke him and he reacts.
+- **Evolution:** Void's body changes with rank: a thicker rim and brighter glow, ground rings (up to 3), one orbiting light per rank, and a crest from Pathfinder (three spikes at Vanguard).
+
 ## Streaks
 - Open Void on consecutive days to build a streak. The header shows a flame and the count.
 - Void burns brighter as the streak grows: embers (3 days), flame (7), blaze (30), blue fire (100), golden fire (365).

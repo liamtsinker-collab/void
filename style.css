@@ -253,6 +253,23 @@ input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; 
 .drop span { color: var(--muted); font-size: .85rem; }
 .modal-card .btn { margin-top: 10px; }
 
+/* ---------- evolution, voice, name ---------- */
+.orbit { transform-box: view-box; transform-origin: 120px 124px; animation: spin linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.stage.pulse::before { animation: glowpulse 1.6s ease 2; }
+@keyframes glowpulse { 50% { opacity: .85; transform: translate(-50%, -42%) scale(1.15); } }
+.sclera, .pupil, .glint { transition: ry .35s ease, r .35s ease; }
+.you-void { max-width: 150px; margin: 8vh auto 14px; }
+#you-in, #name-in { text-align: center; font-size: 1.15rem; }
+.voice-card { display: block; width: 100%; text-align: left; font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; margin: 12px 0; cursor: pointer; transition: border-color .15s, background .15s, transform .12s; }
+.voice-card b { font-weight: 500; font-size: 1.1rem; display: block; }
+.voice-card small { color: var(--muted); display: block; margin: 2px 0 10px; }
+.voice-card .say-sample { background: var(--card2); border-radius: 14px; padding: 10px 14px; font-size: .98rem; line-height: 1.4; }
+.voice-card.sel { border-color: var(--accent); background: var(--card2); box-shadow: 0 0 0 1px var(--accent); }
+.voice-card:active { transform: scale(.99); }
+.name-modal input { margin: 14px 0; }
+.evo-note { color: var(--muted); font-size: .85rem; margin-top: 2px; }
+
 /* ---------- streaks, fire ---------- */
 .hdr-right { display: flex; align-items: center; gap: 8px; }
 .streak-chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 99px; background: var(--card); border: 1px solid var(--line); font-weight: 600; font-size: .9rem; color: #ff9a3c; }

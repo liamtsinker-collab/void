@@ -192,26 +192,33 @@ function streakModalHTML(grants, prevXp) {
   setTimeout(() => {
     const eq = $("m-equip");
     if (eq) eq.onclick = () => { state.gear.equipped[gearInfo(g.drop).slot] = g.drop; save(); renderVoid(); eq.textContent = "Equipped"; eq.disabled = true; };
-    $("m-close").onclick = () => { closeModal(); say(`${state.streak.count} days in a row. That's discipline.`); };
+    $("m-close").onclick = () => { closeModal(); say(V("streakMilestone", { streak: state.streak.count })); setMood("bright", 4000); pulseGlow(); };
   }, 30);
   return h;
 }
+function timeGreet() {
+  const h = new Date().getHours();
+  return h >= 23 || h < 5 ? "greetNight" : h < 12 ? "greetMorning" : h < 17 ? "greetAfternoon" : "greetEvening";
+}
 function runCheckIn() {
-  const prevXp = totalXp(), r = checkIn();
+  const prevLast = state.streak.last, prevXp = totalXp(), r = checkIn();
   if (!r) return;
   renderVoid();
+  const gap = prevLast ? daysBetween(prevLast, localDate()) : 0, s = state.streak;
   if (r.rewards.length) {
     const grants = r.rewards.map(grantMilestone);
     renderVoid();
     setTimeout(() => openModal(streakModalHTML(grants, prevXp)), 900);
   } else if (r.note === "shield") {
-    say("You missed a day, but a shield covered it. Streak: " + state.streak.count + ".");
+    say(V("streakShield", { streak: s.count }));
   } else if (r.note && r.note.startsWith("broken:")) {
-    say(`Your ${r.note.split(":")[1]}-day streak ended. No big deal. We start again today. Best so far: ${state.streak.best}.`);
-  } else if (state.streak.count === 3) {
-    say("Three days in a row. I can feel something igniting.");
-  } else if (state.streak.count > 1) {
-    say(`Day ${state.streak.count}. Good to see you again.`);
+    say(V("streakBroken", { prev: r.note.split(":")[1], best: s.best })); setMood("squint", 3200);
+  } else if (s.count === 3) {
+    say(V("streakThree")); setMood("bright", 3000); pulseGlow();
+  } else if (state.done.length > 0 && gap >= 3) {
+    say(V("welcomeBack")); setMood("squint", 2600);
+  } else if (state.done.length > 0) {
+    say(Math.random() < 0.5 && s.count > 1 ? V("streakDay", { streak: s.count }) : V(timeGreet()));
   }
 }
 
@@ -219,8 +226,24 @@ function runCheckIn() {
 const design = () => DESIGNS[state.profile.design];
 const accent = () => ACCENTS[state.profile.accent].hex;
 
+// Void's expression: eyes open wider when excited, squint when tired, droop at night. Temporary moods fade back.
+let mood = { lid: 1, pupil: 1 };
+const MOODS = { bright: { lid: 1.28, pupil: 1.3 }, wide: { lid: 1.3, pupil: 0.8 }, squint: { lid: 0.4, pupil: 0.9 } };
+const nightLid = () => { const h = new Date().getHours(); return h >= 23 || h < 5 ? 0.8 : 1; };
+let moodTimer;
+function setMood(name, ms = 1800) {
+  mood = MOODS[name] || { lid: 1, pupil: 1 };
+  if (state.profile) applyLook();
+  clearTimeout(moodTimer);
+  moodTimer = setTimeout(() => { mood = { lid: 1, pupil: 1 }; if (state.profile) applyLook(); }, ms);
+}
+function pulseGlow() {
+  const st = document.querySelector(".stage");
+  st.classList.remove("pulse"); void st.offsetWidth; st.classList.add("pulse");
+}
+
 function applyLook() {
-  const d = design(), acc = accent(), e = d.eyes, lid = LID[rankIdx()];
+  const d = design(), acc = accent(), e = d.eyes, rank = rankIdx(), lid = LID[rank] * nightLid() * mood.lid;
   document.querySelectorAll("#clip path, .hollow, .outline").forEach((x) => x.setAttribute("d", d.body));
   $("detail").setAttribute("d", d.detail || "");
   $("detail").style.stroke = mix(acc, "#ffffff", 0.4);
@@ -229,14 +252,15 @@ function applyLook() {
   $("glassB").setAttribute("stop-color", mix(acc, "#120e1c", 0.9));
   const o = document.querySelector(".outline");
   o.style.stroke = mix(acc, "#ffffff", 0.35);
-  o.style.filter = `drop-shadow(0 0 6px ${acc}99)`;
+  o.style.strokeWidth = (3 + Math.min(rank, 6) * 0.25).toFixed(2);          // the rim thickens as you rank up
+  o.style.filter = `drop-shadow(0 0 ${6 + rank}px ${acc}99)`;
   document.documentElement.style.setProperty("--accent", acc);
   const eyeCol = mix(acc, "#ffffff", 0.78);
   [["L", -1], ["R", 1]].forEach(([s, sg]) => {
-    const cx = 120 + sg * e.dx, ry = e.ry * lid;
+    const cx = 120 + sg * e.dx, ry = Math.min(e.ry * lid, e.ry * 1.3);
     const sc = $("scl" + s); sc.setAttribute("cx", cx); sc.setAttribute("cy", e.y); sc.setAttribute("rx", e.rx); sc.setAttribute("ry", ry.toFixed(1)); sc.style.fill = eyeCol;
-    const pu = $("p" + s); pu.setAttribute("cx", cx); pu.setAttribute("cy", e.y + 1.5); pu.setAttribute("r", Math.min(e.pr, ry * 0.75).toFixed(1));
-    const g = $("g" + s); g.setAttribute("cx", cx + 2); g.setAttribute("cy", e.y - 1); g.setAttribute("r", Math.max(1, e.pr * 0.32).toFixed(1));
+    const pu = $("p" + s); pu.setAttribute("cx", cx); pu.setAttribute("cy", e.y + 1.5); pu.setAttribute("r", Math.min(e.pr * mood.pupil, ry * 0.8).toFixed(1));
+    const g = $("g" + s); g.setAttribute("cx", cx + 2); g.setAttribute("cy", e.y - 1); g.setAttribute("r", Math.max(1, e.pr * 0.32 * mood.pupil).toFixed(1));
   });
 }
 
@@ -266,13 +290,17 @@ function renderVoid() {
 
   $("gear").innerHTML = equippedItems().map((i) => gearSVG(i, design())).join("");
 
+  // evolution: orbiting lights, ground rings and a crest appear as you rank up
+  const rk = rankIdx();
+  $("evo").innerHTML = evoSVG(design(), rk, accent());
+
   // streak fire: flames on top, a hot rim and a warmer glow
   const ft = fireTier(state.streak.count), fs = FIRE_STYLES[ft];
   $("fire").innerHTML = fireSVG(design(), ft);
   if (fs) document.querySelector(".outline").style.filter = `drop-shadow(0 0 ${6 + ft * 3}px ${fs.a}cc)`;
 
   const stage = document.querySelector(".stage");
-  stage.style.setProperty("--glow-o", (0.16 + f * 0.36 + ft * 0.05).toFixed(2));
+  stage.style.setProperty("--glow-o", (0.16 + f * 0.36 + ft * 0.05 + rk * 0.02).toFixed(2));
   stage.style.setProperty("--glow", fs ? fs.a : len ? topDown[0] : accent());
 
   renderStreakChip();
@@ -309,17 +337,66 @@ function say(text) {
   const b = $("bubble");
   b.classList.remove("say"); void b.offsetWidth; b.classList.add("say");
 }
-function homeLine() {
-  const n = state.done.length, name = state.profile.name;
-  if (state.quest) return "Take your time. Come back when it's done.";
-  if (n === 0) return `I'm ${name}. I don't know what I'm for yet either. Let's find out, one quest at a time.`;
-  if (new Set(state.done.map((d) => d.cat)).size < 6) return "Good. Keep sweeping. Every field you test narrows the map.";
-  if (n < 15) return "There's a pattern forming. Keep testing it.";
-  if (n < 30) return "You're not guessing anymore. You're gathering evidence.";
-  return "Look at the record. That's someone who's been paying attention.";
+// ---------- Void's voice: personal, and personality-aware ----------
+const userName = () => (state.profile && state.profile.userName) || "friend";
+const voiceKey = () => (state.profile && state.profile.voice) || "calm";
+const V = (event, extra = {}) =>
+  voiceLine(event, { name: userName(), void: state.profile ? state.profile.name : "Void", ...extra }, voiceKey());
+
+// Careers that came up in quests that gave you energy, flow or pull (used by the report and by Void's memory).
+function careerList(limit = 8) {
+  const tally = {};
+  state.done.forEach((d) => {
+    const q = getQuest(d.id);
+    if (!q || !q.tests || /^any career/.test(q.tests)) return;
+    const w = (d.flow ? 2 : 0) + (d.verdict === "more" ? 2 : d.verdict === "never" ? -2 : 0) + (d.after > d.before ? 1 : 0);
+    if (w <= 0) return;
+    q.tests.split(",").map((s) => s.trim()).filter((s) => s && !/^any /.test(s)).forEach((c) => { tally[c] = (tally[c] || 0) + w; });
+  });
+  return Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, limit).map((e) => e[0]);
 }
-const POKES = ["Still here.", "No rush.", "Next move is yours.", "Small steps still count.", "You showed up. That matters.", "Keep going."];
-$("void-svg").addEventListener("pointerdown", () => { squish(); say(sample(POKES)); });
+
+// Void remembers what you've actually done, and brings it up.
+function memoryLine() {
+  const rows = catStats();
+  if (!rows.length) return null;
+  const opts = [], label = (k) => CATEGORIES[k].label, n = state.done.length;
+  const lastFlow = [...state.done].reverse().find((d) => d.flow), lq = lastFlow && getQuest(lastFlow.id);
+  if (lq) opts.push(() => V("memFlowRecent", { quest: lq.title }));
+  const fl = rows.filter((r) => r.flow >= 2).sort((a, b) => b.flow - a.flow)[0];
+  if (fl) opts.push(() => V("memFlowRepeat", { n: fl.flow, field: label(fl.k) }));
+  if (rows[0].score > 0 && n >= 4) opts.push(() => V("memStrong", { field: label(rows[0].k) }));
+  const dr = rows.find((r) => r.list.length >= 2 && r.score < 0);
+  if (dr) opts.push(() => V("memDrain", { field: label(dr.k) }));
+  const jump = [...state.done].map((d) => ({ d, j: d.after - d.before })).sort((a, b) => b.j - a.j)[0];
+  const jq = jump && jump.j >= 2 && getQuest(jump.d.id);
+  if (jq) opts.push(() => V("memJump", { quest: jq.title, a: jump.d.after, b: jump.d.before }));
+  const cr = careerList(1)[0];
+  if (cr && n >= 5) opts.push(() => V("memCareer", { career: cr }));
+  if (n >= 5) opts.push(() => V("memVolume", { n }));
+  return opts.length ? sample(opts)() : null;
+}
+// What Void says right after you finish a quest.
+function afterQuestLine(entry, q) {
+  if (entry.verdict === "never") return V("memNoPull");
+  if (entry.flow) {
+    const same = state.done.filter((d) => d.cat === entry.cat && d.flow).length;
+    return same >= 2 ? V("memFlowRepeat", { n: same, field: CATEGORIES[entry.cat].label }) : V("memFlowFirst");
+  }
+  if (entry.after - entry.before >= 2) return V("memJump", { quest: q.title, a: entry.after, b: entry.before });
+  return V(q.tier === "trial" ? "completeTrial" : q.tier === "mission" ? "completeMission" : "completeRecon");
+}
+
+function homeLine() {
+  const n = state.done.length;
+  if (state.quest) return V("questActive");
+  if (n === 0) return V("first");
+  if (n >= 3 && Math.random() < 0.55) { const m = memoryLine(); if (m) return m; }
+  if (new Set(state.done.map((d) => d.cat)).size < 6) return V("homeSweep");
+  if (n < 30) return V("homeDeep");
+  return V("homeLate", { n });
+}
+$("void-svg").addEventListener("pointerdown", () => { squish(); say(V("poke")); setMood("wide", 900); });
 
 // eyes follow your finger / cursor, and drift when nothing's happening
 let lastPointer = 0;
@@ -394,7 +471,7 @@ function renderHome(quiet) {
 function scan() {
   const b = $("take");
   b.disabled = true; b.textContent = "Scanning…";
-  say("Looking for a good one…");
+  say(V("scan"));
   squish();
   setTimeout(() => { pending = pickQuest(); showQuest(); }, 900);
 }
@@ -413,7 +490,7 @@ function showQuest() {
   card.style.animation = "none"; void card.offsetWidth; card.style.animation = "";
   show("exp");
 }
-$("accept").onclick = () => { state.quest = { id: pending.id }; save(); pending = null; renderHome(); show("home"); squish(); };
+$("accept").onclick = () => { state.quest = { id: pending.id }; save(); pending = null; renderHome(true); show("home"); squish(); say(V("accept")); };
 $("reroll").onclick = () => { pending = pickQuest(); showQuest(); };
 $("back1").onclick = () => { pending = null; renderHome(); show("home"); };
 
@@ -463,7 +540,8 @@ $("save").onclick = () => {
   const q = pending, tier = TIERS[q.tier], note = $("note").value.trim();
   const prevXp = totalXp(), prevRank = rankIdx(prevXp);
   const xp = tier.xp + (note.length >= 10 ? 25 : 0);
-  state.done.push({ id: q.id, cat: q.cat, tier: q.tier, xp, ts: Date.now(), before: ref.before, after: ref.after, flow: ref.flow, verdict: ref.verdict, note });
+  const entry = { id: q.id, cat: q.cat, tier: q.tier, xp, ts: Date.now(), before: ref.before, after: ref.after, flow: ref.flow, verdict: ref.verdict, note };
+  state.done.push(entry);
 
   const drop = rollGear(tier.gear);
   let equipped = false;
@@ -478,7 +556,8 @@ $("save").onclick = () => {
   renderHome(true); show("home");
   setTimeout(() => {
     renderVoid(); squish();
-    openModal(completionHTML({ q, xp, prevXp, newXp, prevRank, newRank, drop, equipped }));
+    openModal(completionHTML({ q, entry, xp, prevXp, newXp, prevRank, newRank, drop, equipped }));
+    if (newRank > prevRank) { setMood("bright", 4500); pulseGlow(); }
   }, 250);
 };
 
@@ -499,7 +578,7 @@ function completionHTML(r) {
     <div class="xp big"><div id="m-fill" style="width:${Math.round(start * 100)}%" data-to="${Math.round(end.pct * 100)}"></div></div>
     <div class="xp-meta"><span>${end.max ? "Max rank" : `${end.into} / ${end.need} XP to ${end.next}`}</span><span>${r.newXp} XP</span></div>`;
   if (rankUp) {
-    h += `<div class="rankup">${rankEmblem(r.newRank, 44)}<div><small>Rank up</small><b>${RANKS[r.newRank].name}</b></div></div>`;
+    h += `<div class="rankup">${rankEmblem(r.newRank, 44)}<div><small>Rank up</small><b>${RANKS[r.newRank].name}</b><span class="evo-note">${state.profile.name} has evolved. Go and look.</span></div></div>`;
   }
   if (r.drop) {
     const g = gearInfo(r.drop);
@@ -516,7 +595,7 @@ function completionHTML(r) {
     if (eq) eq.onclick = () => { state.gear.equipped[gearInfo(r.drop).slot] = r.drop; save(); renderVoid(); eq.textContent = "Equipped"; eq.disabled = true; };
     $("m-close").onclick = () => {
       closeModal();
-      say(rankUp ? `Rank up: ${RANKS[r.newRank].name}. You earned that.` : sample(["Logged. That's evidence.", "Good. One more data point.", "Thank you. I can feel it.", "That counts."]));
+      say(rankUp ? V("rankUp", { rank: RANKS[r.newRank].name }) : afterQuestLine(r.entry, r.q));
     };
   }, 30);
   return h;
@@ -605,9 +684,21 @@ function appearanceHTML() {
     `<button class="app-chip ${p.design === i ? "sel" : ""} ${hasDesign(i) ? "" : "lk"}" data-design="${i}">${d.name}${hasDesign(i) ? "" : '<span class="lkt">Premium</span>'}</button>`).join("");
   const sw = ACCENTS.map((a, i) =>
     `<button class="sw ${p.accent === i ? "sel" : ""} ${hasAccent(i) ? "" : "lk"}" data-accent="${i}" style="background:${a.hex}" aria-label="${a.name}${hasAccent(i) ? "" : " (premium)"}"></button>`).join("");
-  return `<h3 class="log-title">Appearance</h3><div class="app-chips">${designs}</div><div class="swatches app-sw">${sw}</div>`;
+  const voices = Object.keys(VOICES).map((k) => `<button class="app-chip ${voiceKey() === k ? "sel" : ""}" data-voice="${k}">${VOICES[k].label}</button>`).join("");
+  return `<h3 class="log-title">Appearance</h3><div class="app-chips">${designs}</div><div class="swatches app-sw">${sw}</div>
+    <h3 class="log-title">Personality</h3><div class="app-chips">${voices}</div>
+    <p class="sub" style="margin:-4px 0 6px">${VOICES[voiceKey()].blurb}</p>
+    <button class="link" id="edit-name" style="margin:4px 0 0;padding-left:0;text-align:left"></button>`;
 }
 function bindAppearance() {
+  document.querySelectorAll("#locker-body [data-voice]").forEach((b) => {
+    b.onclick = () => {
+      state.profile.voice = b.dataset.voice; save(); renderLocker();
+      toast("“" + fmt(VOICES[b.dataset.voice].sample, { name: userName() }) + "”");
+    };
+  });
+  const en = $("edit-name");
+  if (en) { en.textContent = `Your name: ${userName()} (change)`; en.onclick = () => openNameModal(userName()); }
   document.querySelectorAll("#locker-body [data-design]").forEach((b) => {
     b.onclick = () => {
       const i = +b.dataset.design;
@@ -699,15 +790,7 @@ function renderReport() {
 
   const t2 = rows.slice(0, 2).map((r) => r.k);
   // careers worth researching: weighted by the quests that gave you energy, flow or pull
-  const tally = {};
-  state.done.forEach((d) => {
-    const q = getQuest(d.id);
-    if (!q || !q.tests || /^any career/.test(q.tests)) return;
-    const w = (d.flow ? 2 : 0) + (d.verdict === "more" ? 2 : d.verdict === "never" ? -2 : 0) + (d.after > d.before ? 1 : 0);
-    if (w <= 0) return;
-    q.tests.split(",").map((s) => s.trim()).filter((s) => s && !/^any /.test(s)).forEach((c) => { tally[c] = (tally[c] || 0) + w; });
-  });
-  const careers = Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, 8).map((e) => e[0]);
+  const careers = careerList(8);
   html += sec("Careers worth researching", (careers.length
     ? `<p>These came up in the quests that gave you energy, flow or pull:</p><p><b>${careers.map(esc).join(" · ")}</b></p>`
     : t2.map((k) => `<p>${colour(k)}: ${FIELD_PATHS[k]}.</p>`).join("")) +
@@ -871,7 +954,16 @@ function advance() {
 $("intro").addEventListener("click", (e) => { if (!e.target.closest("button")) advance(); });
 addEventListener("keydown", (e) => { if ($("intro").classList.contains("active") && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); advance(); } });
 $("skip").onclick = (e) => { e.stopPropagation(); G.i = GUIDE.length - 1; showLine(); };
-$("age-yes").onclick = () => { G.underage = false; renderPick(); show("choose"); };
+$("age-yes").onclick = () => {
+  G.underage = false;
+  $("you-void").innerHTML = miniVoid(0, ACCENTS[0].hex, [], 1);
+  $("you-in").value = ob.user || ""; $("you-go").disabled = !$("you-in").value.trim();
+  show("you");
+  setTimeout(() => $("you-in").focus(), 350);
+};
+$("you-in").oninput = () => { $("you-go").disabled = !$("you-in").value.trim(); };
+$("you-in").addEventListener("keydown", (e) => { if (e.key === "Enter" && !$("you-go").disabled) $("you-go").click(); });
+$("you-go").onclick = () => { ob.user = $("you-in").value.trim(); renderPick(); show("choose"); };
 $("age-no").onclick = () => {
   G.underage = true;
   $("g-age").hidden = true; $("g-back").hidden = false;
@@ -920,13 +1012,51 @@ $("pick-go").onclick = () => {
 };
 $("namer-back").onclick = () => show("choose");
 $("name-in").oninput = () => { $("start").disabled = !$("name-in").value.trim(); };
+$("name-in").addEventListener("keydown", (e) => { if (e.key === "Enter" && !$("start").disabled) $("start").click(); });
 $("start").onclick = () => {
   const name = $("name-in").value.trim();
   if (!name) return;
-  state.profile = { design: ob.i, accent: ob.acc, name, adult: true, created: Date.now() };
+  ob.name = name;
+  renderVoiceCards();
+  show("voice");
+};
+
+// last step of setup: how should Void talk to you?
+function renderVoiceCards() {
+  const box = $("voice-cards");
+  box.innerHTML = Object.keys(VOICES).map((k) =>
+    `<button class="voice-card ${ob.voice === k ? "sel" : ""}" data-v="${k}"><b>${VOICES[k].label}</b><small>${VOICES[k].blurb}</small><div class="say-sample"></div></button>`).join("");
+  box.querySelectorAll(".voice-card").forEach((c) => {
+    c.querySelector(".say-sample").textContent = "“" + fmt(VOICES[c.dataset.v].sample, { name: ob.user || "friend" }) + "”";
+    c.onclick = () => { ob.voice = c.dataset.v; renderVoiceCards(); $("voice-go").disabled = false; };
+  });
+  $("voice-go").disabled = !ob.voice;
+}
+$("voice-back").onclick = () => show("namer");
+$("voice-go").onclick = () => {
+  if (!ob.voice) return;
+  state.profile = { design: ob.i, accent: ob.acc, name: ob.name, userName: ob.user || "friend", voice: ob.voice, adult: true, created: Date.now() };
   save();
   enterApp(true);
 };
+
+// ask for a name if this profile doesn't have one yet, or if the user wants to change it
+function openNameModal(initial) {
+  openModal(`<div class="name-modal"><h3 style="margin:0 0 6px;font-weight:500">What should I call you?</h3>
+    <p class="sub" style="margin:0">I'll use it when I talk to you.</p>
+    <input type="text" id="nm-in" maxlength="20" placeholder="Your name" autocomplete="given-name">
+    <button class="btn primary" id="nm-save">Save</button></div>`);
+  setTimeout(() => {
+    const inp = $("nm-in"); inp.value = initial || ""; inp.focus();
+    const go = () => {
+      const v = inp.value.trim(); if (!v) return;
+      state.profile.userName = v; if (!state.profile.voice) state.profile.voice = "calm";
+      save(); closeModal(); renderVoid(); renderHome(); if ($("locker").classList.contains("active")) renderLocker();
+    };
+    $("nm-save").onclick = go;
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  }, 40);
+}
 
 function enterApp(first) {
   document.body.classList.remove("onboarding");
@@ -935,7 +1065,11 @@ function enterApp(first) {
   $("liquid").style.transform = "translateY(236px)";
   renderHome();
   show("home");
-  setTimeout(() => { renderVoid(); runCheckIn(); }, first ? 200 : 350);
+  setTimeout(() => {
+    renderVoid();
+    if (!state.profile.userName) { openNameModal(""); return; }        // older profiles: ask once
+    runCheckIn();
+  }, first ? 200 : 350);
 }
 
 $("reset").onclick = (e) => {
@@ -946,7 +1080,7 @@ $("reset").onclick = (e) => {
   delete r.dataset.armed; r.textContent = "Reset everything";
   ob = { i: 0, acc: 0 };
   document.body.classList.add("onboarding");
-  $("name-in").value = ""; $("start").disabled = true;
+  $("name-in").value = ""; $("start").disabled = true; $("you-in").value = "";
   startGuide();
 };
 

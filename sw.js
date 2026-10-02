@@ -1,7 +1,7 @@
-// Service worker: lets Void install like an app and open offline.
+﻿// Service worker: lets Void install like an app and open offline.
 // Network first, so updates arrive as soon as you're online; falls back to the saved copy when you're not.
 const CACHE = "void-v1";
-const ASSETS = ["./", "index.html", "style.css", "app.js", "quests.js", "gear.js", "store.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
+const ASSETS = ["./", "index.html", "style.css", "app.js", "quests.js", "gear.js", "voice.js", "store.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));

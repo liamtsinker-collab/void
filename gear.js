@@ -207,6 +207,30 @@ function fireSVG(d, tier) {
   return out;
 }
 
+// ---------- evolution ----------
+// Void's body changes as you rank up: orbiting lights (one per rank), ground rings, and a crest at higher ranks.
+function evoSVG(d, rank, acc) {
+  if (rank < 1) return "";
+  const light = mix(acc, "#ffffff", 0.5);
+  let out = "";
+  const rings = Math.min(rank, 3);
+  for (let i = 0; i < rings; i++) {
+    out += `<ellipse cx="120" cy="226" rx="${84 + i * 16}" ry="${9 + i * 2.5}" fill="none" stroke="${light}" stroke-opacity="${(0.42 - i * 0.1).toFixed(2)}" stroke-width="1.5"/>`;
+  }
+  for (let i = 0; i < rank; i++) {
+    const r = 100 + (i % 3) * 7, size = 2.2 + (i % 2) * 0.9, dur = 9 + i * 2.3, offset = (i / rank) * dur;
+    out += `<g class="orbit" style="animation-duration:${dur.toFixed(1)}s;animation-delay:${(-offset).toFixed(1)}s"><circle cx="${120 + r}" cy="124" r="${size}" fill="${light}" opacity=".9"/></g>`;
+  }
+  if (rank >= 4) {
+    const t = d.a.top;
+    const spikes = rank >= 6 ? [[-28, 16], [0, 28], [28, 16]] : [[-18, 18], [18, 18]];
+    spikes.forEach(([dx, h]) => {
+      out += `<path d="M${120 + dx - 8} ${t + 10} L${120 + dx} ${t + 10 - h - 10} L${120 + dx + 8} ${t + 10} Z" fill="${light}" fill-opacity=".85"/>`;
+    });
+  }
+  return out;
+}
+
 // Rank emblem: one chevron per rank.
 function rankEmblem(idx, size = 28) {
   let p = "";
